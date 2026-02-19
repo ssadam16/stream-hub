@@ -5,17 +5,19 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - user-service-postgres_data:/var/lib/postgresql
+      - user-service-postgres_data:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: user-service-db
     healthcheck:
-      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+      test: ["CMD-SHELL", "pg_isready -U postgres -d user-service-db"]
       interval: 10s
       timeout: 5s
       start_period: 10s
       retries: 5
+    networks:
+      - streamhub-network
 
   config-server:
     build: ./config-server
@@ -26,28 +28,48 @@ services:
     environment:
       GIT_USERNAME: ${GIT_USERNAME}
       GIT_PASSWORD: ${GIT_PASSWORD}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+    networks:
+      - streamhub-network
 
   user-service:
     build: ./user-service
     ports:
       - "8081:8081"
     depends_on:
-      - user-service-postgres
-      - config-server
+      user-service-postgres:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     environment:
-      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI}
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       DB_PASSWORD: ${DB_PASSWORD}
       SPRING_DATASOURCE_URL: jdbc:postgresql://user-service-postgres:5432/user-service-db
+    networks:
+      - streamhub-network
 
   api-gateway:
     build: ./api-gateway
     ports:
       - "8080:8080"
     depends_on:
-      - config-server
-      - user-service
+      config-server:
+        condition: service_healthy
+      user-service:
+        condition: service_started
     environment:
-      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI}
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+    networks:
+      - streamhub-network
 
 volumes:
   user-service-postgres_data:
+
+networks:
+  streamhub-network:
+    driver: bridge
