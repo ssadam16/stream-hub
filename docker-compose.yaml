@@ -1,11 +1,12 @@
 services:
   user-service-postgres:
+    container_name: user-service-postgres
     image: postgres:latest
     restart: on-failure
     ports:
       - "5432:5432"
     volumes:
-      - user-service-postgres_data:/var/lib/postgresql/data
+      - user-service-postgres_data:/var/lib/postgresql
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -20,6 +21,7 @@ services:
       - streamhub-network
 
   config-server:
+    container_name: config-server
     build: ./config-server
     ports:
       - "8888:8888"
@@ -38,6 +40,7 @@ services:
       - streamhub-network
 
   user-service:
+    container_name: user-service
     build: ./user-service
     ports:
       - "8081:8081"
@@ -54,6 +57,7 @@ services:
       - streamhub-network
 
   api-gateway:
+    container_name: api-gateway
     build: ./api-gateway
     ports:
       - "8080:8080"
