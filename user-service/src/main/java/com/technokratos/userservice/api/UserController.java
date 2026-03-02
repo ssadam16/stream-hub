@@ -1,32 +1,35 @@
 package com.technokratos.userservice.api;
 
-import com.technokratos.userservice.api.dto.UserRequest;
-import com.technokratos.userservice.api.dto.UserResponse;
-import com.technokratos.userservice.entities.UserEntity;
-import com.technokratos.userservice.mappers.UserMapper;
+import com.technokratos.userservice.api.dto.request.UserRegisterRequest;
+import com.technokratos.userservice.api.dto.response.UserResponse;
 import com.technokratos.userservice.services.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/users")
 @RequiredArgsConstructor
-public class UserController {
+public class UserController implements UserApi {
 
     private final UserService userService;
-    private final UserMapper userMapper;
 
-    @GetMapping
-    public List<UserResponse> getAll() {
-        List<UserEntity> users = userService.getAll();
-        return userMapper.toUserResponse(users);
+    @Override
+    public ResponseEntity<List<UserResponse>> getAllUsers() {
+        return new ResponseEntity<>(userService.getAll(), HttpStatus.OK);
     }
 
-    @PostMapping
-    public UserResponse create(@RequestBody UserRequest dto) {
-        return userMapper.toUserResponse(userService.create(dto));
+    @Override
+    public ResponseEntity<UserResponse> getUserById(UUID id) {
+        return new ResponseEntity<>(userService.getOne(id), HttpStatus.OK);
+    }
+
+    @Override
+    public ResponseEntity<UserResponse> createUser(UserRegisterRequest dto) {
+        return new ResponseEntity<>(userService.create(dto), HttpStatus.CREATED);
     }
 }
 
