@@ -1,7 +1,7 @@
 package com.technokratos.userservice.mappers;
 
-import com.technokratos.userservice.api.dto.UserRequest;
-import com.technokratos.userservice.api.dto.UserResponse;
+import com.technokratos.userservice.api.dto.request.UserRegisterRequest;
+import com.technokratos.userservice.api.dto.response.UserResponse;
 import com.technokratos.userservice.entities.UserEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
@@ -18,7 +18,7 @@ public interface UserMapper {
 
     List<UserEntity> toEntity(List<UserResponse> userResponse);
 
-    UserEntity toEntity(UserRequest userRequest);
+    UserEntity toEntity(UserRegisterRequest userRegisterRequest);
 
-    UserRequest toUserRequest(UserEntity userEntity);
+    UserRegisterRequest toUserRequest(UserEntity userEntity);
 }
