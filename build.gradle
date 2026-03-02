@@ -13,8 +13,6 @@ java {
     sourceCompatibility = JavaLanguageVersion.of(21)
 }
 
-jar.enabled = true
-
 subprojects {
     apply plugin: 'java'
     apply plugin: 'io.spring.dependency-management'
