@@ -8,5 +8,11 @@ import java.util.UUID;
  * DTO for {@link UserEntity}
  */
 
-public record UserResponse(UUID id, String username, String email, String hashPassword, UserEntity.Role role) {
+public record UserResponse(
+        UUID id,
+        String username,
+        String email,
+        String hashPassword,
+        UserEntity.Role role
+) {
 }
