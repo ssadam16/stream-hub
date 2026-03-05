@@ -20,24 +20,24 @@ services:
     networks:
       - streamhub-network
 
-  config-server:
-    container_name: config-server
-    build: ./config-server
-    ports:
-      - "8888:8888"
-    volumes:
-      - ~/streamhub-config:/config
-    environment:
-      GIT_USERNAME: ${GIT_USERNAME}
-      GIT_PASSWORD: ${GIT_PASSWORD}
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      start_period: 30s
-      retries: 10
-    networks:
-      - streamhub-network
+#  config-server:
+#    container_name: config-server
+#    build: ./config-server
+#    ports:
+#      - "8888:8888"
+#    volumes:
+#      - ~/streamhub-config:/config
+#    environment:
+#      GIT_USERNAME: ${GIT_USERNAME}
+#      GIT_PASSWORD: ${GIT_PASSWORD}
+#    healthcheck:
+#      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/actuator/health"]
+#      interval: 10s
+#      timeout: 5s
+#      start_period: 30s
+#      retries: 10
+#    networks:
+#      - streamhub-network
 
   user-service:
     container_name: user-service
@@ -47,10 +47,10 @@ services:
     depends_on:
       user-service-postgres:
         condition: service_healthy
-      config-server:
-        condition: service_healthy
+#      config-server:
+#        condition: service_healthy
     environment:
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+#      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_URL: jdbc:postgresql://user-service-postgres:5432/user-service-db
       DB_PASSWORD: ${DB_PASSWORD}
@@ -63,12 +63,12 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      config-server:
-        condition: service_healthy
+#      config-server:
+#        condition: service_healthy
       user-service:
         condition: service_started
     environment:
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+#      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       USER_SERVICE_URI: http://user-service:8081
     networks:
       - streamhub-network
