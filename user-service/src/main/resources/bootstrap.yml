@@ -5,4 +5,4 @@ spring:
     import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
   cloud:
     config:
-      enabled: false
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}

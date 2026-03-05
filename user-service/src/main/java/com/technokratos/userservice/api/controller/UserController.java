@@ -1,4 +1,4 @@
-package com.technokratos.userservice.api;
+package com.technokratos.userservice.api.controller;
 
 import com.technokratos.userservice.api.dto.request.UserRegisterRequest;
 import com.technokratos.userservice.api.dto.response.UserResponse;

@@ -1,4 +1,4 @@
-package com.technokratos.userservice.api;
+package com.technokratos.userservice.api.controller;
 
 import com.technokratos.userservice.api.dto.request.TokenValidationRequest;
 import com.technokratos.userservice.api.dto.request.UserAuthRequest;
