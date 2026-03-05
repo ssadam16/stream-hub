@@ -32,7 +32,6 @@ public class TestController {
         log.info("Token is valid: {}", tokenValid);
         log.info("User roles: {}", roles);
 
-
         UserDetails userDetails = userService.loadUserByUsername(email);
 
         return ResponseEntity.ok(Map.of(userDetails.getUsername(), userDetails.getPassword()));

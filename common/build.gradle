@@ -9,7 +9,6 @@ publishing {
         mavenJava(MavenPublication) {
             from components.java
 
-            // ДОБАВЬТЕ ЭТОТ БЛОК для разрешения версий
             versionMapping {
                 usage('java-api') {
                     fromResolutionOf('runtimeClasspath')
@@ -22,10 +21,9 @@ publishing {
     }
 }
 
-// Опционально: добавить информацию о разработчиках
 publishing {
     repositories {
-        mavenLocal() // публикация в локальный репозиторий
+        mavenLocal()
     }
 }
 
