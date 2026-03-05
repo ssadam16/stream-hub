@@ -1,5 +1,7 @@
 package com.technokratos.userservice;
 
+import com.technokratos.common.annotations.CurrentUser;
+import com.technokratos.common.dto.CurrentUserInfo;
 import com.technokratos.userservice.services.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -24,13 +26,12 @@ public class TestController {
 
     @GetMapping("/profile")
     public ResponseEntity<Map<String, String>> getProfile(
-            @RequestHeader("X-User-Email") String email,
-            @RequestHeader("X-User-Roles") String roles,
-            @RequestHeader(value = "X-User-Token-Valid", required = false) String tokenValid) {
+            @CurrentUser CurrentUserInfo currentUserInfo) {
+
+        String email = currentUserInfo.email();
 
         log.info("Request from user: {}", email);
-        log.info("Token is valid: {}", tokenValid);
-        log.info("User roles: {}", roles);
+        log.info("Token is valid: {}", currentUserInfo.roles());
 
         UserDetails userDetails = userService.loadUserByUsername(email);
 

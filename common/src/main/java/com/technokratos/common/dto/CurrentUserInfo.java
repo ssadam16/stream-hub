@@ -8,12 +8,11 @@ import java.util.UUID;
 
 @Builder
 public record CurrentUserInfo(
-        UUID id,
         String email,
         List<Role> roles
 ) {
     public boolean isAuthenticated() {
-        return id != null;
+        return email != null;
     }
 
     public boolean hasRole(Role role) {

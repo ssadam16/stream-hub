@@ -29,12 +29,15 @@ publishing {
 
 group = 'com.technokratos'
 version = '0.0.1-SNAPSHOT'
-description = 'common'
 
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+}
+
+repositories {
+    mavenCentral()
 }
 
 configurations {
@@ -43,22 +46,19 @@ configurations {
     }
 }
 
-repositories {
-    mavenCentral()
-}
 
 jar {
     enabled = true
 }
 
-dependencyManagement {
-    imports {
-        mavenBom "org.springframework.boot:spring-boot-dependencies:3.2.5"
-    }
-}
-
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:3.5.10"
+    }
 }

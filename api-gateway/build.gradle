@@ -42,10 +42,6 @@ dependencyManagement {
     }
 }
 
-springBoot {
-    mainClass = 'com.technokratos.apigateway.ApiGatewayApplication'
-}
-
 tasks.named('test') {
     useJUnitPlatform()
 }

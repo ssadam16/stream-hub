@@ -20,7 +20,6 @@ import java.util.UUID;
 @Slf4j
 public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolver {
 
-    private static final String USER_ID_HEADER = "X-User-Id";
     private static final String USER_EMAIL_HEADER = "X-User-Email";
     private static final String USER_ROLES_HEADER = "X-User-Roles";
 
@@ -42,18 +41,18 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
         boolean required = annotation != null && annotation.required();
 
         try {
-            String userIdHeader = request.getHeader(USER_ID_HEADER);
             String emailHeader = request.getHeader(USER_EMAIL_HEADER);
             String rolesHeader = request.getHeader(USER_ROLES_HEADER);
 
-            log.debug("Extracting user from headers: ID={}, email={}, roles={}",
-                    userIdHeader, emailHeader, rolesHeader);
+            log.info("Extracting user from headers: email={}, roles={}", emailHeader, rolesHeader);
 
-            if (required && (userIdHeader == null || userIdHeader.isEmpty())) {
-                throw new IllegalStateException("User ID header is missing but @CurrentUserInfo is required");
+            if (required && (emailHeader == null || emailHeader.isEmpty())) {
+                log.info("email header == null || email header is empty (required)");
+                throw new IllegalStateException("User email header is missing but @CurrentUserInfo is required");
             }
 
-            if (userIdHeader == null || userIdHeader.isEmpty()) {
+            if (emailHeader == null || emailHeader.isEmpty()) {
+                log.info("email header == null || email header is empty (non-required)");
                 return null;
             }
 
@@ -64,8 +63,9 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
                             .toList() :
                     List.of();
 
+            log.info("Roles: {}", roles);
+
             return CurrentUserInfo.builder()
-                    .id(UUID.fromString(userIdHeader))
                     .email(emailHeader)
                     .roles(roles)
                     .build();
