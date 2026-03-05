@@ -1,4 +1,4 @@
-package com.technokratos.userservice.handler.exceptions;
+package com.technokratos.common.exceptions;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -15,4 +15,3 @@ public class ServiceException extends RuntimeException {
         this.httpStatus = httpStatus;
     }
 }
-

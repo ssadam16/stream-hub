@@ -18,6 +18,15 @@ subprojects {
     apply plugin: 'org.springframework.boot'
     apply plugin: 'io.spring.dependency-management'
 
+    if (it.name != 'common') {
+        apply plugin: 'org.springframework.boot'
+
+        bootJar {
+            enabled = true
+            archiveClassifier = ''
+        }
+    }
+
     repositories {
         mavenCentral()
     }

@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 /**
  * DTO for {@link com.technokratos.userservice.entities.UserEntity}
  */
-public record UserRegisterRequest(
+public record UserRegisterRequest (
         @NotBlank(message = "Username is required")
         @Size(min = 5, max = 30, message = "Username must be between 5 and 30 characters")
         String username,

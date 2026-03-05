@@ -1,5 +1,6 @@
 package com.technokratos.userservice.api.dto.response;
 
+import com.technokratos.common.enums.Role;
 import com.technokratos.userservice.entities.UserEntity;
 
 import java.util.UUID;
@@ -13,6 +14,6 @@ public record UserResponse(
         String username,
         String email,
         String hashPassword,
-        UserEntity.Role role
+        Role role
 ) {
 }

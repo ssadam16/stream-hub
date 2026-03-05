@@ -1,8 +1,6 @@
 package com.technokratos.userservice.handler;
 
-import com.technokratos.userservice.handler.exceptions.ExceptionMessage;
-import com.technokratos.userservice.handler.exceptions.ServiceException;
-import com.technokratos.userservice.handler.exceptions.ValidationExceptionMessage;
+import com.technokratos.common.exceptions.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +17,7 @@ import java.util.List;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ServiceException.class)
-    public ResponseEntity<ExceptionMessage> handleServiceException(ServiceException e) {
+    public ResponseEntity<com.technokratos.common.exceptions.ExceptionMessage> handleServiceException(ServiceException e) {
         return ResponseEntity.status(e.getHttpStatus())
                 .body(ExceptionMessage.builder()
                         .exceptionName(e.getClass().getSimpleName())
@@ -57,12 +55,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ExceptionMessage handeAllErrors(Exception e) {
+        log.error("PIZDEC!! PIZDA!! PIZDEC!! : {}", e.getMessage());
+
         return ExceptionMessage.builder()
                 .message(e.getMessage())
                 .exceptionName(e.getClass().getSimpleName())
                 .build();
     }
-
-
-
 }
