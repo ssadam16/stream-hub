@@ -6,6 +6,5 @@ import lombok.Builder;
 public record ExceptionMessage (
         String message,
         String exceptionName
-) {
-}
+) {}
 

@@ -1,6 +1,32 @@
 plugins {
     id 'java-library'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'maven-publish'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+
+            // ДОБАВЬТЕ ЭТОТ БЛОК для разрешения версий
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
+            }
+        }
+    }
+}
+
+// Опционально: добавить информацию о разработчиках
+publishing {
+    repositories {
+        mavenLocal() // публикация в локальный репозиторий
+    }
 }
 
 group = 'com.technokratos'

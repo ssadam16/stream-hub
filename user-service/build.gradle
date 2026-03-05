@@ -22,6 +22,7 @@ configurations {
 
 repositories {
     mavenCentral()
+    mavenLocal()
 }
 
 ext {
@@ -51,7 +52,7 @@ dependencies {
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.0'
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
 
-    implementation project(':common')
+    implementation 'com.technokratos:common:0.0.1-SNAPSHOT'
 }
 
 dependencyManagement {
