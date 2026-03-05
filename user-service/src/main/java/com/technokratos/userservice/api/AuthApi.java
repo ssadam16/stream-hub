@@ -4,8 +4,6 @@ import com.technokratos.userservice.api.dto.request.TokenValidationRequest;
 import com.technokratos.userservice.api.dto.request.UserAuthRequest;
 import com.technokratos.userservice.api.dto.response.TokenValidationResponse;
 import com.technokratos.userservice.api.dto.response.UserAuthResponse;
-import com.technokratos.userservice.api.dto.response.UserResponse;
-import com.technokratos.userservice.handler.exceptions.ExceptionMessage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;

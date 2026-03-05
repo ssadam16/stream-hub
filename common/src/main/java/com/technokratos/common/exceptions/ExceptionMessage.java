@@ -1,13 +1,11 @@
-package com.technokratos.userservice.handler.exceptions;
+package com.technokratos.common.exceptions;
 
 import lombok.Builder;
 
 @Builder
 public record ExceptionMessage (
         String message,
-
         String exceptionName
 ) {
 }
-
 

@@ -1,6 +1,7 @@
 package com.technokratos.userservice.handler.exceptions;
 
 import java.util.UUID;
+import com.technokratos.common.exceptions.*;
 
 public class UserNotFoundException extends NotFoundException {
     public UserNotFoundException(UUID id) {

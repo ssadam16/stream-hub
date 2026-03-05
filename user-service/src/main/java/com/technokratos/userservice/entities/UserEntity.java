@@ -1,10 +1,9 @@
 package com.technokratos.userservice.entities;
 
+import com.technokratos.common.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -27,9 +26,4 @@ public class UserEntity extends BaseEntity {
     @Column(name = "role", nullable = false)
     @Enumerated(EnumType.STRING)
     private Role role;
-
-    public enum Role {
-        USER,
-        ADMIN
-    }
 }

@@ -1,5 +1,6 @@
 package com.technokratos.userservice.services;
 
+import com.technokratos.common.enums.Role;
 import com.technokratos.userservice.api.dto.request.UserAuthRequest;
 import com.technokratos.userservice.api.dto.request.UserRegisterRequest;
 import com.technokratos.userservice.api.dto.response.UserResponse;
@@ -45,7 +46,7 @@ public class UserService implements UserDetailsService {
         UserEntity userEntity = userMapper.toEntity(dto);
 
         userEntity.setHashPassword(passwordEncoder.encode(dto.password()));
-        userEntity.setRole(UserEntity.Role.USER);
+        userEntity.setRole(Role.USER);
 
         return userMapper.toUserResponse(userRepository.save(userEntity));
     }
