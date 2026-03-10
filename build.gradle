@@ -6,16 +6,20 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7' apply false
 }
 
-group = 'com.technokratos.streamhub'
-version = '0.0.1-SNAPSHOT'
-
-java {
-    sourceCompatibility = JavaLanguageVersion.of(21)
+ext {
+    set('springCloudVersion', "2025.0.0")
 }
+
+group = 'com.technokratos'
+version = '0.0.1-SNAPSHOT'
 
 subprojects {
     apply plugin: 'java'
     apply plugin: 'io.spring.dependency-management'
+
+    java {
+        sourceCompatibility = JavaLanguageVersion.of(21)
+    }
 
     if (it.name != 'common') {
         apply plugin: 'org.springframework.boot'
@@ -40,13 +44,11 @@ subprojects {
 
         testCompileOnly 'org.projectlombok:lombok'
         testAnnotationProcessor 'org.projectlombok:lombok'
-
-        implementation 'org.springframework.boot:spring-boot-starter'
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
     }
 
     dependencyManagement {
         imports {
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
             mavenBom SpringBootPlugin.BOM_COORDINATES
         }
     }

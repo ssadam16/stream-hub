@@ -1,0 +1,75 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-user-table
+      author: nongrataqqq
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: created_date
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_date
+                  type: timestamp
+              - column:
+                  name: username
+                  type: varchar
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: password
+                  type: varchar
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email
+                  type: varchar
+                  constraints:
+                    nullable: false
+                    unique: true
+      rollback:
+        - dropTable:
+            tableName: users
+
+  - changeSet:
+      id: create-role-table
+      author: nongrataqqq
+      changes:
+        - createTable:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: created_date
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_date
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role_name
+                  type: varchar
+                  defaultValue: USER
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: roles
