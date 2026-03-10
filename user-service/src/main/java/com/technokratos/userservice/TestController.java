@@ -37,7 +37,4 @@ public class TestController {
 
         return ResponseEntity.ok(Map.of(userDetails.getUsername(), userDetails.getPassword()));
     }
-
-
-
 }

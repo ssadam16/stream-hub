@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: code-executor-service
+
+docker:
+  http-client:
+    max-connections: 100
+    connection-timeout: 45
+    response-timeout: 60

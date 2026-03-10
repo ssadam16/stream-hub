@@ -6,8 +6,15 @@ import com.technokratos.taskservice.entities.Task;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
 
-@Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE, componentModel = "spring")
+import java.util.List;
+
+@Mapper(
+        unmappedTargetPolicy = ReportingPolicy.IGNORE,
+        componentModel = "spring",
+        uses = {ConsoleTestCaseMapper.class}
+)
 public interface TaskMapper {
     Task toTask(TaskCreatingRequest request);
     TaskResponse toTaskResponse(Task task);
+    List<TaskResponse> toTaskResponseList(List<Task> tasks);
 }
