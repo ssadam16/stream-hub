@@ -1,0 +1,17 @@
+server:
+  port: 8084
+
+spring:
+  liquibase:
+    change-log: classpath:/db/changelog/changelog-master.yaml
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/solution-service-db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${DB_PASSWORD:235094}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect

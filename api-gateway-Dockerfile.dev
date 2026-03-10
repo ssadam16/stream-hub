@@ -1,0 +1,29 @@
+FROM gradle:8.10-jdk21-alpine AS builder
+
+WORKDIR /app
+
+# Копируем всё, что нужно Gradle
+COPY settings.gradle .
+COPY build.gradle .
+COPY gradle/ ./gradle/
+COPY gradlew .
+
+COPY common/ ./common/
+COPY api-gateway/ ./api-gateway/
+# ... другие модули, если нужн
+
+# Скачиваем зависимости (кэшируется хорошо)
+RUN ./gradlew dependencies --no-daemon
+
+# Собираем только нужный модуль
+RUN ./gradlew :api-gateway:bootJar --no-daemon -x test
+
+# Финальная стадия
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+COPY --from=builder /app/api-gateway/build/libs/*.jar app.jar
+
+ENV JAVA_OPTS="..."
+EXPOSE 8888
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

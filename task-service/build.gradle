@@ -55,7 +55,7 @@ dependencies {
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.0'
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
 
-    implementation 'com.technokratos:common:0.0.1-SNAPSHOT'
+    implementation project(':common')
 }
 
 tasks.named('test') {

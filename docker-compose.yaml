@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: user-service-db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d user-service-db"]
+      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
       interval: 10s
       timeout: 5s
       start_period: 10s
@@ -33,7 +33,28 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: task-service-db
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d task-service-db" ]
+      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    networks:
+      - streamhub-network
+
+  solution-service-postgres:
+    container_name: solution-service-postgres
+    image: postgres:latest
+    restart: on-failure
+    ports:
+      - "5434:5432"
+    volumes:
+      - solution-service-postgres-data:/var/lib/postgresql
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: solution-service-db
+    healthcheck:
+      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
       interval: 10s
       timeout: 5s
       start_period: 10s
@@ -43,16 +64,13 @@ services:
 
   config-server:
     container_name: config-server
-    build: ./config-server
+    build:
+      context: .
+      dockerfile: config-server-Dockerfile.dev
     ports:
       - "8888:8888"
-    volumes:
-      - ~/streamhub-config:/config
-    environment:
-      GIT_USERNAME: ${GIT_USERNAME}
-      GIT_PASSWORD: ${GIT_PASSWORD}
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/actuator/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/actuator/health" ]
       interval: 10s
       timeout: 5s
       start_period: 30s
@@ -60,9 +78,32 @@ services:
     networks:
       - streamhub-network
 
+
+  solution-service:
+    container_name: solution-service
+    build:
+      context: .
+      dockerfile: solution-service-Dockerfile.dev
+    ports:
+      - "8084:8084"
+    depends_on:
+      solution-service-postgres:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    environment:
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://solution-service-postgres:5432/solution-service-db
+      DB_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - streamhub-network
+
   user-service:
     container_name: user-service
-    build: ./user-service
+    build:
+      context: .
+      dockerfile: user-service-Dockerfile.dev
     ports:
       - "8081:8081"
     depends_on:
@@ -80,7 +121,9 @@ services:
 
   task-service:
     container_name: task-service
-    build: ./task-service
+    build:
+      context: .
+      dockerfile: task-service-Dockerfile.dev
     ports:
       - "8082:8082"
     depends_on:
@@ -98,7 +141,9 @@ services:
 
   api-gateway:
     container_name: api-gateway
-    build: ./api-gateway
+    build:
+      context: .
+      dockerfile: api-gateway-Dockerfile.dev
     ports:
       - "8080:8080"
     depends_on:
@@ -115,6 +160,7 @@ services:
 volumes:
   user-service-postgres_data:
   task-service-postgres_data:
+  solution-service-postgres-data:
 
 networks:
   streamhub-network:

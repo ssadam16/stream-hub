@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: user-service
+              uri: ${USER_SERVICE_URI:http://localhost:8081}
+              predicates:
+                - Path=/api/users/**, /api/auth/token
+              filters:
+                - AddRequestHeader=X-Request-Example, Gateway-Request
+                - AddResponseHeader=X-Response-Example, Gateway-Response
+                - name: JwtAuthenticationFilter
+                  args:
+                    publicPaths:
+                      - /api/users
+                      - /api/auth/token
+                      - /actuator/health
+                      - /swagger-ui/**
+                      - /v3/api-docs/**
+  jmx:
+    enabled: true
+
+
+user-service:
+  uri: ${USER_SERVICE_URI:http://localhost:8081}
+logging:
+  level:
+    com.technokratos.apigateway: DEBUG
