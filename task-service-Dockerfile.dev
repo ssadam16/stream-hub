@@ -1,0 +1,30 @@
+FROM gradle:8.10-jdk21-alpine AS builder
+
+WORKDIR /app
+
+# Копируем всё, что нужно Gradle
+COPY settings.gradle .
+COPY build.gradle .
+COPY gradle/ ./gradle/
+COPY gradlew .
+
+# Копируем ВСЕ модули
+COPY common/ ./common/
+COPY task-service/ ./task-service/
+# ... другие модули, если нужны
+
+# Скачиваем зависимости (кэшируется хорошо)
+RUN ./gradlew dependencies --no-daemon
+
+# Собираем только нужный модуль
+RUN ./gradlew :task-service:bootJar --no-daemon -x test
+
+# Финальная стадия
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+COPY --from=builder /app/task-service/build/libs/*.jar app.jar
+
+ENV JAVA_OPTS="..."
+EXPOSE 8082
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -1,14 +1,13 @@
 spring:
   application:
     name: config-server
+  profiles:
+    active: native
   cloud:
     config:
       server:
-        git:
-          uri: https://gitlab.com/nongrataqqq/streamhub-config.git
-          username: ${GIT_USERNAME}
-          password: ${GIT_PASSWORD}
-          default-label: main
+        native:
+          search-locations: classpath:/config
 
 server:
   port: 8888

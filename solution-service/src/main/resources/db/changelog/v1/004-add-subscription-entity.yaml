@@ -1,0 +1,45 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-table-subscriptions
+      author: nongrataqqq
+      changes:
+        - createTable:
+            tableName: subscriptions
+            columns:
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: subscriptions_pk
+              - column:
+                  name: price
+                  type: float
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_date
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_date
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: timestamp
+              - column:
+                  name: subscription_type
+                  type: varchar
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: subscriptions
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_subscriptions_user

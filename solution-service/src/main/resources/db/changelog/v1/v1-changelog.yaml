@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - include:
+      file: 001-initial-schema.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 002-create-mtm-relationship.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 003-insert-roles.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 004-add-subscription-entity.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 005-add-post-entity.yaml
+      relativeToChangelogFile: true
