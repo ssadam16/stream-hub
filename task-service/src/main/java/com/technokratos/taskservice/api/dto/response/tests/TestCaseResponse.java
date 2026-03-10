@@ -10,5 +10,6 @@ import java.util.UUID;
 public class TestCaseResponse {
     protected UUID taskId;
     protected boolean isExample;
+    private boolean isPassed;
     protected short order;
 }

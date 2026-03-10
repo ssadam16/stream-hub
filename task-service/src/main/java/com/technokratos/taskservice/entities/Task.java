@@ -4,6 +4,7 @@ import com.technokratos.common.enums.TaskDifficulty;
 import com.technokratos.common.enums.TaskTestType;
 import com.technokratos.taskservice.entities.tests.ConsoleTestCase;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 

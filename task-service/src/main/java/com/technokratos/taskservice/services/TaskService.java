@@ -47,4 +47,10 @@ public class TaskService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getAll() {
+        log.info("Get all tasks");
+
+        return taskMapper.toTaskResponseList(taskRepository.findAll());
+    }
 }

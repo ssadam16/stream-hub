@@ -17,6 +17,7 @@ create table if not exists console_test_cases (
     updated_at timestamp default current_timestamp,
     task_id uuid not null references tasks(id) on delete cascade,
     is_example boolean not null default false,
+    is_passed boolean not null default false,
     order_num smallint not null,
     input varchar(1023) not null,
     expected_output varchar(1023) not null

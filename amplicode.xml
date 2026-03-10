@@ -17,6 +17,21 @@
           <package value="com.technokratos.solutionservice" />
         </packages>
       </persistence-unit>
+      <persistence-unit moduleName="task-service.main" name="Default">
+        <packages>
+          <package value="com.technokratos.taskservice" />
+        </packages>
+      </persistence-unit>
+      <persistence-unit moduleName="stream-hub.task-service.main" name="Default">
+        <packages>
+          <package value="com.technokratos.taskservice" />
+        </packages>
+      </persistence-unit>
+      <persistence-unit moduleName="code-executor-service.main" name="Default">
+        <packages>
+          <package value="com.technokratos.codeexecutorservice" />
+        </packages>
+      </persistence-unit>
     </persistence-units>
   </component>
 </project>

@@ -24,7 +24,7 @@ public class TaskController implements TaskApi {
 
     @Override
     public ResponseEntity<List<TaskResponse>> getAllTasks() {
-        return null;
+        return ResponseEntity.ok(taskService.getAll());
     }
 
     @Override

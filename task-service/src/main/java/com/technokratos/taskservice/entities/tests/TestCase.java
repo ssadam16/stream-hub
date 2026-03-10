@@ -25,5 +25,8 @@ public class TestCase extends BaseEntity {
     private boolean isExample;
 
     @Column(nullable = false)
+    private boolean isPassed;
+
+    @Column(nullable = false)
     private short orderNum;
 }
