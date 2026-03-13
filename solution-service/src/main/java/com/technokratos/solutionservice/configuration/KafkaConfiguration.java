@@ -14,7 +14,7 @@ public class KafkaConfiguration {
 
     @Bean
     public NewTopic solutionsTopic() {
-        return TopicBuilder.name("solutions")
+        return TopicBuilder.name("code-execution-topic")
                 .partitions(3)
                 .replicas(3)
                 .config(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, "2")

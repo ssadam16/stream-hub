@@ -1,5 +1,6 @@
 package com.technokratos.solutionservice.mapper;
 
+import com.technokratos.common.events.SolutionCreationEvent;
 import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.dto.SolutionResponse;
 import com.technokratos.solutionservice.model.SolutionEntity;
@@ -21,6 +22,8 @@ public interface SolutionMapper {
     SolutionResponse toSolutionResponse(SolutionEntity solutionEntity);
 
     List<SolutionResponse> toSolutionResponse(List<SolutionEntity> solutionEntities);
+
+    SolutionCreationEvent toSolutionCreationEvent(SolutionEntity entity);
 
     default Page<SolutionResponse> toResponsePage(Page<SolutionEntity> page) {
         return page.map(this::toSolutionResponse);

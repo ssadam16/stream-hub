@@ -1,0 +1,25 @@
+docker:
+  http-client:
+    max-connections: 100
+    connection-timeout: 45
+    response-timeout: 60
+spring:
+  kafka:
+    bootstrap-servers: ${BOOTSTRAP_SERVERS:localhost:9092,localhost:9094,localhost:9096}
+    consumer:
+      group-id: solution-group
+      properties:
+        spring.json.trusted.packages: "com.technokratos.common.events"
+      key-deserializer: org.apache.kafka.common.serialization.UUIDDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.UUIDSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: true
+      retries: 3
+      acks: all
+
+server:
+  port:
+    8085
