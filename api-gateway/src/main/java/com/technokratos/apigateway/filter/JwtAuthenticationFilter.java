@@ -3,8 +3,8 @@ package com.technokratos.apigateway.filter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.technokratos.apigateway.dto.ErrorJwtResponse;
-import com.technokratos.apigateway.dto.TokenValidationResponse;
 import com.technokratos.apigateway.service.TokenValidationService;
+import com.technokratos.common.dto.TokenValidationResponse;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -65,7 +65,7 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                             ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
                                     .header("X-User-Email", validationResponse.email())
                                     .header("X-User-Roles", String.join(",", validationResponse.roles()))
-                                    .header("X-User-Token-Valid", "true")
+                                    .header("X-User-Id", validationResponse.userId())
                                     .build();
 
                             return chain.filter(exchange.mutate()

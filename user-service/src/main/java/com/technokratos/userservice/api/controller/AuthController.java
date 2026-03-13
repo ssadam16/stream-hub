@@ -1,9 +1,10 @@
 package com.technokratos.userservice.api.controller;
 
-import com.technokratos.userservice.api.dto.request.TokenValidationRequest;
+import com.technokratos.common.dto.TokenValidationRequest;
 import com.technokratos.userservice.api.dto.request.UserAuthRequest;
-import com.technokratos.userservice.api.dto.response.TokenValidationResponse;
+import com.technokratos.common.dto.TokenValidationResponse;
 import com.technokratos.userservice.api.dto.response.UserAuthResponse;
+import com.technokratos.userservice.api.swagger.AuthApi;
 import com.technokratos.userservice.security.details.CustomUserDetails;
 import com.technokratos.userservice.services.JwtService;
 import com.technokratos.userservice.services.UserService;
@@ -36,7 +37,7 @@ public class AuthController implements AuthApi {
 
         String jwt = jwtService.generateToken(userDetails);
 
-        log.info("Generated jwt={}", jwt);
+        log.debug("Generated jwt (5 symbols) = {}", jwt.substring(0, 5));
 
         return ResponseEntity.ok(
                 UserAuthResponse.builder()

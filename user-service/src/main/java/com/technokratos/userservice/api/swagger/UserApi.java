@@ -1,4 +1,4 @@
-package com.technokratos.userservice.api.controller;
+package com.technokratos.userservice.api.swagger;
 
 import com.technokratos.common.exceptions.ExceptionMessage;
 import com.technokratos.common.exceptions.ValidationExceptionMessage;

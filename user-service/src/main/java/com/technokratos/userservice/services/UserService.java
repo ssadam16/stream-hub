@@ -8,6 +8,7 @@ import com.technokratos.userservice.handler.exceptions.UserNotFoundException;
 import com.technokratos.userservice.mappers.UserMapper;
 import com.technokratos.userservice.repositories.UserRepository;
 import com.technokratos.userservice.security.details.CustomUserDetails;
+import com.technokratos.userservice.security.details.CustomUserDetailsImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,18 +25,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Service
 @Slf4j
-@Transactional
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
-    @Transactional(readOnly = true)
     public List<UserResponse> getAll() {
         return userMapper.toUserResponse(userRepository.findAll());
     }
 
+    @Transactional
     public UserResponse create(UserRegisterRequest dto) {
         log.info("Add user to system");
         UserEntity userEntity = userMapper.toEntity(dto);
@@ -46,7 +46,6 @@ public class UserService implements UserDetailsService {
         return userMapper.toUserResponse(userRepository.save(userEntity));
     }
 
-    @Transactional(readOnly = true)
     public UserResponse getOne(UUID id) {
         log.info("Find user with id {}", id);
         Optional<UserEntity> userEntityOptional = userRepository.findById(id);
@@ -56,13 +55,9 @@ public class UserService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        log.info("Load user from database");
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User with email %s not found".formatted(email)));
 
-        CustomUserDetails customUserDetails = new CustomUserDetails(userRepository.findByEmail(email).orElseThrow(
-                () -> new UsernameNotFoundException(email)
-        ));
-
-        log.info("User {} loaded from the database", customUserDetails.getUsername());
-        return customUserDetails;
+        return new CustomUserDetailsImpl(user);
     }
 }

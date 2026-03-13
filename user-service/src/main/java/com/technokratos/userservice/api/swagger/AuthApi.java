@@ -1,8 +1,8 @@
-package com.technokratos.userservice.api.controller;
+package com.technokratos.userservice.api.swagger;
 
-import com.technokratos.userservice.api.dto.request.TokenValidationRequest;
+import com.technokratos.common.dto.TokenValidationRequest;
 import com.technokratos.userservice.api.dto.request.UserAuthRequest;
-import com.technokratos.userservice.api.dto.response.TokenValidationResponse;
+import com.technokratos.common.dto.TokenValidationResponse;
 import com.technokratos.userservice.api.dto.response.UserAuthResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;

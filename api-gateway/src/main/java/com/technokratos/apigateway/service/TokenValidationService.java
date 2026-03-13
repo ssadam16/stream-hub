@@ -1,7 +1,7 @@
 package com.technokratos.apigateway.service;
 
-import com.technokratos.apigateway.dto.TokenValidationRequest;
-import com.technokratos.apigateway.dto.TokenValidationResponse;
+import com.technokratos.common.dto.TokenValidationRequest;
+import com.technokratos.common.dto.TokenValidationResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
