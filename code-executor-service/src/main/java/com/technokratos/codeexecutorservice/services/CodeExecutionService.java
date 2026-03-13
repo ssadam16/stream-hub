@@ -1,5 +1,6 @@
 package com.technokratos.codeexecutorservice.services;
 
+import com.technokratos.codeexecutorservice.api.dto.SolutionRequest;
 import com.technokratos.codeexecutorservice.api.dto.kafka.KafkaEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +16,7 @@ import java.util.UUID;
 @Slf4j
 public class CodeExecutionService {
 
-    public void executeCode(Object obj) {
+    public void executeCode(SolutionRequest request) {
 
     }
 }

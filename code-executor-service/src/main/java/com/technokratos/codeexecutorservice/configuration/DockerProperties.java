@@ -18,4 +18,7 @@ public class DockerProperties {
 
     @Value("${docker.http-client.response-timeout}")
     private Integer responseTimeout;
+
+    @Value("${docker.images.java}")
+    private String javaImage;
 }

@@ -9,7 +9,7 @@ COPY gradle/ ./gradle/
 COPY gradlew .
 
 COPY common/ ./common/
-COPY solution-service/ ./code-executor-service/
+COPY code-executor-service/ ./code-executor-service/
 # ... другие модули, если нужн
 
 # Скачиваем зависимости (кэшируется хорошо)
