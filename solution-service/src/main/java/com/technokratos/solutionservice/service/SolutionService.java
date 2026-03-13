@@ -2,7 +2,7 @@ package com.technokratos.solutionservice.service;
 
 import com.technokratos.common.dto.CurrentUserInfo;
 import com.technokratos.common.enums.SolutionStatus;
-import com.technokratos.common.events.SolutionEvent;
+import com.technokratos.common.events.SolutionCreationEvent;
 import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.dto.SolutionResponse;
 import com.technokratos.solutionservice.handler.exceptions.SolutionNotFound;
@@ -11,11 +11,12 @@ import com.technokratos.solutionservice.model.SolutionEntity;
 import com.technokratos.solutionservice.repository.SolutionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -28,12 +29,21 @@ public class SolutionService {
 
     private final SolutionRepository solutionRepository;
 
-    public SolutionResponse solveTask(SolutionRequest dto, CurrentUserInfo user) {
+    private final KafkaTemplate<UUID, SolutionCreationEvent> kafkaTemplate;
+
+    private final static String EXECUTION_CODE_KAFKA_TOPIC = "code-execution-topic";
+
+    @Transactional
+    public UUID solveTask(SolutionRequest dto, CurrentUserInfo user) {
         SolutionEntity solution = mapper.toEntity(dto);
         solution.setUserId(user.id());
         solution.setStatus(SolutionStatus.PENDING);
+
         SolutionEntity savedSolution = solutionRepository.save(solution);
-        return mapper.toSolutionResponse(savedSolution);
+
+        UUID solutionId = savedSolution.getId();
+        kafkaTemplate.send(EXECUTION_CODE_KAFKA_TOPIC, solutionId, mapper.toSolutionCreationEvent(savedSolution));
+        return solutionId;
     }
 
     public Page<SolutionResponse> getAll(Pageable pageable) {
@@ -48,10 +58,5 @@ public class SolutionService {
 
     public void deleteOne(UUID id) {
         solutionRepository.deleteById(id);
-    }
-
-    @KafkaListener(topics = "solutions", concurrency = "3")
-    public void kafkaTest(SolutionEvent event) {
-        log.info("Solution id: {}", event.solutionId());
     }
 }

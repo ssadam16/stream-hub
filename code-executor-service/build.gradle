@@ -59,7 +59,7 @@ dependencies {
     implementation 'com.github.docker-java:docker-java-core:3.4.0'
     implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.4.0'
 
-    implementation 'com.technokratos:common:0.0.1-SNAPSHOT'
+    implementation project(':common')
 }
 
 tasks.named('test') {
