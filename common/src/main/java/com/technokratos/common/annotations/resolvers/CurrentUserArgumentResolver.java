@@ -22,6 +22,7 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
 
     private static final String USER_EMAIL_HEADER = "X-User-Email";
     private static final String USER_ROLES_HEADER = "X-User-Roles";
+    private static final String USER_ID_HEADER = "X-User-Id";
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
@@ -43,16 +44,17 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
         try {
             String emailHeader = request.getHeader(USER_EMAIL_HEADER);
             String rolesHeader = request.getHeader(USER_ROLES_HEADER);
+            String idHeader = request.getHeader(USER_ID_HEADER);
 
-            log.info("Extracting user from headers: email={}, roles={}", emailHeader, rolesHeader);
+            log.debug("Extracting user from headers: email={}, roles={}, id={}", emailHeader, rolesHeader, idHeader);
 
-            if (required && (emailHeader == null || emailHeader.isEmpty())) {
-                log.info("email header == null || email header is empty (required)");
-                throw new IllegalStateException("User email header is missing but @CurrentUserInfo is required");
+            if (required && (idHeader == null || idHeader.isEmpty())) {
+                log.warn("id header == null || id header is empty (required)");
+                throw new IllegalStateException("User id header is missing but @CurrentUserInfo is required");
             }
 
-            if (emailHeader == null || emailHeader.isEmpty()) {
-                log.info("email header == null || email header is empty (non-required)");
+            if (idHeader == null || idHeader.isEmpty()) {
+                log.warn("id header == null || id header is empty (non-required)");
                 return null;
             }
 
@@ -63,11 +65,10 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
                             .toList() :
                     List.of();
 
-            log.info("Roles: {}", roles);
-
             return CurrentUserInfo.builder()
                     .email(emailHeader)
                     .roles(roles)
+                    .id(UUID.fromString(idHeader))
                     .build();
 
         } catch (Exception e) {

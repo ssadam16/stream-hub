@@ -1,75 +1,18 @@
 databaseChangeLog:
   - changeSet:
-      id: create-user-table
+      id: create-solution-table
       author: nongrataqqq
       changes:
-        - createTable:
-            tableName: users
-            columns:
-              - column:
-                  name: id
-                  type: uuid
-                  constraints:
-                    primaryKey: true
-                    nullable: false
-              - column:
-                  name: created_date
-                  type: timestamp
-                  constraints:
-                    nullable: false
-              - column:
-                  name: updated_date
-                  type: timestamp
-              - column:
-                  name: username
-                  type: varchar
-                  constraints:
-                    nullable: false
-                    unique: true
-              - column:
-                  name: password
-                  type: varchar
-                  constraints:
-                    nullable: false
-              - column:
-                  name: email
-                  type: varchar
-                  constraints:
-                    nullable: false
-                    unique: true
-      rollback:
-        - dropTable:
-            tableName: users
-
-  - changeSet:
-      id: create-role-table
-      author: nongrataqqq
-      changes:
-        - createTable:
-            tableName: roles
-            columns:
-              - column:
-                  name: id
-                  type: uuid
-                  constraints:
-                    primaryKey: true
-                    nullable: false
-              - column:
-                  name: created_date
-                  type: timestamp
-                  constraints:
-                    nullable: false
-              - column:
-                  name: updated_date
-                  type: timestamp
-                  constraints:
-                    nullable: false
-              - column:
-                  name: role_name
-                  type: varchar
-                  defaultValue: USER
-                  constraints:
-                    nullable: false
-      rollback:
-        - dropTable:
-            tableName: roles
+        - sql:
+            sql: |
+              CREATE TABLE solutions (
+                id           UUID        DEFAULT gen_random_uuid(),
+                task_id      UUID        NOT NULL,
+                user_id      UUID        NOT NULL,
+                language     VARCHAR(50) NOT NULL CHECK (language in ('JAVA', 'PYTHON')),
+                status       VARCHAR(50) DEFAULT 'PENDING' check (status in ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')),
+                code         TEXT        NOT NULL,
+                created_at   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+                updated_at   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (task_id, user_id)
+              );

@@ -37,6 +37,7 @@ public class SecurityConfiguration {
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.getWriter().write("{\"message\": \"Access denied: Insufficient permissions\"}");
                         })
+
                 );
 
         return http.build();

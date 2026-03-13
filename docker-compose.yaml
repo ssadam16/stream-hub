@@ -6,7 +6,7 @@ services:
     ports:
       - "5434:5432"
     volumes:
-      - user-service-postgres_data:/var/lib/postgresql
+      - user-service-postgres-data:/var/lib/postgresql
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -27,7 +27,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - task-service-postgres_data:/var/lib/postgresql
+      - task-service-postgres-data:/var/lib/postgresql
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -96,6 +96,7 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_URL: jdbc:postgresql://solution-service-postgres:5432/solution-service-db
       DB_PASSWORD: ${DB_PASSWORD}
+      BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
     networks:
       - streamhub-network
 
@@ -154,6 +155,7 @@ services:
     environment:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       USER_SERVICE_URI: http://user-service:8081
+      SOLUTION_SERVICE_URI: http://solution-service:8084
     networks:
       - streamhub-network
 
@@ -244,12 +246,12 @@ services:
       - streamhub-network
 
 volumes:
-  user-service-postgres_data:
-  task-service-postgres_data:
-  kafka_data1:
-  kafka_data2:
-  kafka_data3:
+  user-service-postgres-data:
+  task-service-postgres-data:
   solution-service-postgres-data:
+  kafka2_data:
+  kafka1_data:
+  kafka3_data:
 
 networks:
   streamhub-network:

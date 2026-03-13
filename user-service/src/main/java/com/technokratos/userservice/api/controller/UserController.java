@@ -2,6 +2,7 @@ package com.technokratos.userservice.api.controller;
 
 import com.technokratos.userservice.api.dto.request.UserRegisterRequest;
 import com.technokratos.userservice.api.dto.response.UserResponse;
+import com.technokratos.userservice.api.swagger.UserApi;
 import com.technokratos.userservice.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

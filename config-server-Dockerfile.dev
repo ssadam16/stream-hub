@@ -2,27 +2,34 @@ FROM gradle:8.10-jdk21-alpine AS builder
 
 WORKDIR /app
 
-# Копируем всё, что нужно Gradle
-COPY settings.gradle .
-COPY build.gradle .
+# Копируем только файлы, нужные для зависимостей
+COPY settings.gradle build.gradle gradle.properties* ./
 COPY gradle/ ./gradle/
 COPY gradlew .
+COPY config-server/build.gradle ./config-server/
 
-COPY config-server/ ./config-server/
-# ... другие модули, если нужн
-
-# Скачиваем зависимости (кэшируется хорошо)
+# Скачиваем зависимости
 RUN ./gradlew dependencies --no-daemon
 
-# Собираем только нужный модуль
+COPY config-server/ ./config-server/
 RUN ./gradlew :config-server:bootJar --no-daemon -x test
 
 # Финальная стадия
 FROM eclipse-temurin:21-jre-alpine
 
+# Создаем non-root пользователя
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 WORKDIR /app
 COPY --from=builder /app/config-server/build/libs/*.jar app.jar
 
-ENV JAVA_OPTS="..."
-EXPOSE 8888
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# Переключаемся на non-root пользователя
+USER appuser
+
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+EXPOSE 8088
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:8088/actuator/health || exit 1
+
+ENTRYPOINT ["sh", "-c", "exec java ${JAVA_OPTS} -jar /app/app.jar"]
