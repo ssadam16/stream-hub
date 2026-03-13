@@ -22,6 +22,19 @@ spring:
                       - /actuator/health
                       - /swagger-ui/**
                       - /v3/api-docs/**
+            - id: solution-service
+              uri: ${SOLUTION_SERVICE_URI:http://localhost:8084}
+              predicates:
+                - Path=/api/solutions/**
+              filters:
+                - AddRequestHeader=X-Request-Example, Gateway-Request
+                - AddResponseHeader=X-Response-Example, Gateway-Response
+                - name: JwtAuthenticationFilter
+                  args:
+                    publicPaths:
+                      - /actuator/health
+                      - /swagger-ui/**
+                      - /v3/api-docs/**
   jmx:
     enabled: true
 

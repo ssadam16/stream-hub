@@ -1,7 +1,7 @@
 package com.technokratos.userservice.services;
 
-import com.technokratos.userservice.api.dto.request.TokenValidationRequest;
-import com.technokratos.userservice.api.dto.response.TokenValidationResponse;
+import com.technokratos.common.dto.TokenValidationRequest;
+import com.technokratos.common.dto.TokenValidationResponse;
 import com.technokratos.userservice.security.details.CustomUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -16,10 +16,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -40,6 +37,7 @@ public class JwtService {
 
         claims.put("roles", roles);
         claims.put("sub", userDetails.getUsername());
+        claims.put("id", userDetails.getId());
 
         Date issuedDate = new Date();
         Date expiredDate = new Date(issuedDate.getTime() + jwtExpiration.toMillis());
@@ -59,14 +57,20 @@ public class JwtService {
     public String getEmailFromToken(String token) {
         Claims allClaimsFromToken = getAllClaimsFromToken(token);
         String email = allClaimsFromToken.getSubject();
-        log.info("Parse email={} from token={}", email, token);
+        log.debug("Parse email={} from token={}", email, token.substring(0, 5));
         return email;
     }
 
     public List<String> getRolesFromToken(String token) {
         List<String> roles = getAllClaimsFromToken(token).get("roles", List.class);
-        log.info("Parse roles={} from token={}", roles, token);
+        log.debug("Parse roles={} from token={}", roles, token.substring(0, 5));
         return roles;
+    }
+
+    public String getUserIdFromToken(String token) {
+        String userId = getAllClaimsFromToken(token).get("id", String.class);
+        log.debug("Parse user id={} from token={}", userId, token.substring(0, 5));
+        return userId;
     }
 
     private Claims getAllClaimsFromToken(String token) {
@@ -78,7 +82,6 @@ public class JwtService {
     }
 
     public TokenValidationResponse validateToken(TokenValidationRequest request) {
-
         String token = request.token();
 
         try {
@@ -87,6 +90,7 @@ public class JwtService {
                     .timestamp(LocalDateTime.now())
                     .roles(getRolesFromToken(token))
                     .email(getEmailFromToken(token))
+                    .userId(getUserIdFromToken(token))
                     .build();
         } catch (Exception e) {
             return TokenValidationResponse.builder()
@@ -96,5 +100,4 @@ public class JwtService {
                     .build();
         }
     }
-
 }
