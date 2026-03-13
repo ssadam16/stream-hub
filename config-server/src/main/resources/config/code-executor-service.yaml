@@ -3,6 +3,9 @@ docker:
     max-connections: 100
     connection-timeout: 45
     response-timeout: 60
+  images:
+    java: openjdk:27-ea-trixie
+
 spring:
   kafka:
     bootstrap-servers: ${BOOTSTRAP_SERVERS:localhost:9092,localhost:9094,localhost:9096}
