@@ -16,7 +16,8 @@ import java.util.UUID;
 @Slf4j
 public class CodeExecutionService {
 
-    public void executeCode(SolutionRequest request) {
+    private final DockerManager dockerManager;
 
+    public void executeCode(SolutionRequest request) {
     }
 }

@@ -20,4 +20,10 @@ public class DockerProperties {
 
     @Value("${docker.images.java}")
     private String javaImage;
+
+    @Value("${docker.host-dir}")
+    private String hostDir;
+
+    @Value("${docker.working-dir}")
+    private String workingDir;
 }

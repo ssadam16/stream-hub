@@ -1,5 +1,6 @@
 package com.technokratos.codeexecutorservice.api.dto;
 
+import com.technokratos.common.enums.ProgrammingLanguage;
 import com.technokratos.common.enums.TaskTestType;
 import lombok.Builder;
 
@@ -8,8 +9,8 @@ import java.util.UUID;
 
 @Builder
 public record SolutionRequest(
-        String codeFileMongoUrl,
-        String language,
+        String code,
+        ProgrammingLanguage language,
         UUID solutionId,
         TaskTestType testType,
         //todo: перенести TestCaseResponse в common и использовать его
