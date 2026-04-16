@@ -1,4 +1,4 @@
-package com.technokratos.taskservice.api.dto.response.tests;
+package com.technokratos.common.dto.tests;
 
 import lombok.Getter;
 import lombok.experimental.SuperBuilder;

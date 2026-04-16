@@ -13,7 +13,6 @@ import java.util.UUID;
  */
 public record SolutionRequest(
         ProgrammingLanguage language,
-        @NotNull UUID taskId,
         @NotBlank String code
 ) {
 }

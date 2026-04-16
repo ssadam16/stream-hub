@@ -41,10 +41,11 @@ public class SolutionController {
         return solutionService.getOne(id);
     }
 
-    @PostMapping
+    @PostMapping("/{taskId}")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public UUID solveTask(@RequestBody @Valid SolutionRequest dto, @CurrentUser CurrentUserInfo user) {
-        return solutionService.solveTask(dto, user);
+    public UUID solveTask(@RequestBody @Valid SolutionRequest dto, @CurrentUser CurrentUserInfo user,
+                          @PathVariable UUID taskId) {
+        return solutionService.solveTask(dto, user, taskId);
     }
 }
 

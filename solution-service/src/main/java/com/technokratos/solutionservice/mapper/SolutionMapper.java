@@ -5,6 +5,7 @@ import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.dto.SolutionResponse;
 import com.technokratos.solutionservice.model.SolutionEntity;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
 import org.mapstruct.ReportingPolicy;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,7 @@ public interface SolutionMapper {
 
     List<SolutionResponse> toSolutionResponse(List<SolutionEntity> solutionEntities);
 
+    @Mapping(target = "solutionId", source = "id")
     SolutionCreationEvent toSolutionCreationEvent(SolutionEntity entity);
 
     default Page<SolutionResponse> toResponsePage(Page<SolutionEntity> page) {
