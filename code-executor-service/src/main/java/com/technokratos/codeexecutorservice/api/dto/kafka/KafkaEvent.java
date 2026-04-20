@@ -10,7 +10,7 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder(toBuilder = true)
+@Builder
 public abstract class KafkaEvent {
     protected Instant createdAt;
     protected Instant receivedAt;

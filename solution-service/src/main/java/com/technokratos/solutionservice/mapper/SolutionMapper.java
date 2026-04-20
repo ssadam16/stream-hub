@@ -15,13 +15,7 @@ import java.util.List;
 public interface SolutionMapper {
     SolutionEntity toEntity(SolutionRequest solutionRequest);
 
-    SolutionRequest toSolutionRequest(SolutionEntity solutionEntity);
-
-    SolutionEntity toEntity(SolutionResponse solutionResponse);
-
     SolutionResponse toSolutionResponse(SolutionEntity solutionEntity);
-
-    List<SolutionResponse> toSolutionResponse(List<SolutionEntity> solutionEntities);
 
     SolutionCreationEvent toSolutionCreationEvent(SolutionEntity entity);
 

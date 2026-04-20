@@ -14,14 +14,14 @@ import lombok.experimental.SuperBuilder;
 @Table(name = "users")
 public class UserEntity extends BaseEntity {
 
+    @Column(name = "keycloak_id", unique = true)
+    private String keycloakId;
+
     @Column(name = "username", nullable = false)
     private String username;
 
     @Column(name = "email", nullable = false, unique = true)
     private String email;
-
-    @Column(name = "hash_password", nullable = false)
-    private String hashPassword;
 
     @Column(name = "role", nullable = false)
     @Enumerated(EnumType.STRING)

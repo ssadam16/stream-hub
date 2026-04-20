@@ -6,7 +6,6 @@ import com.technokratos.common.exceptions.ValidationExceptionMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -40,18 +39,6 @@ public class GlobalExceptionHandler {
                 .toList();
 
         return ResponseEntity.status(e.getStatusCode()).body(errors);
-    }
-
-    @ExceptionHandler(AuthenticationException.class)
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public ExceptionMessage handleAuthenticationException(AuthenticationException e) {
-        log.warn("Authentication exception, {}, {}", e.getAuthenticationRequest(), e.getMessage());
-
-        return ExceptionMessage.builder()
-                        .exceptionName(e.getClass().getSimpleName())
-                        .message(e.getMessage())
-                        .build();
-
     }
 
     @ExceptionHandler(Exception.class)
