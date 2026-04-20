@@ -10,18 +10,11 @@ spring:
             - id: user-service
               uri: ${USER_SERVICE_URI:http://localhost:8081}
               predicates:
-                - Path=/api/users/**, /api/auth/token
+                - Path=/api/users/**
               filters:
                 - AddRequestHeader=X-Request-Example, Gateway-Request
                 - AddResponseHeader=X-Response-Example, Gateway-Response
-                - name: JwtAuthenticationFilter
-                  args:
-                    publicPaths:
-                      - /api/users
-                      - /api/auth/token
-                      - /actuator/health
-                      - /swagger-ui/**
-                      - /v3/api-docs/**
+
             - id: solution-service
               uri: ${SOLUTION_SERVICE_URI:http://localhost:8084}
               predicates:
@@ -29,18 +22,35 @@ spring:
               filters:
                 - AddRequestHeader=X-Request-Example, Gateway-Request
                 - AddResponseHeader=X-Response-Example, Gateway-Response
-                - name: JwtAuthenticationFilter
-                  args:
-                    publicPaths:
-                      - /actuator/health
-                      - /swagger-ui/**
-                      - /v3/api-docs/**
-  jmx:
-    enabled: true
 
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8090/realms/myrealm
+        registration:
+          keycloak:
+            provider: keycloak
+            client-id: gateway
+            client-secret: RWuBpGsfRQAHGvK5qeKSwPtmWpa3wXUQ
+            authorization-grant-type: password
+            scope:
+              - openid
+              - email
+              - profile
+              - roles
 
-user-service:
-  uri: ${USER_SERVICE_URI:http://localhost:8081}
+keycloak:
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:RWuBpGsfRQAHGvK5qeKSwPtmWpa3wXUQ}
+
+services:
+  user-service:
+    uri: ${USER_SERVICE_URI:http://localhost:8081}
+  keycloak-service:
+    uri: ${KEYCLOAK_SERVICE_URI:http://localhost:8090}
+
 logging:
   level:
+    org.springframework.security: DEBUG
     com.technokratos.apigateway: DEBUG

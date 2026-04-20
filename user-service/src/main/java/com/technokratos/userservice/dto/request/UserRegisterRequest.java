@@ -1,4 +1,4 @@
-package com.technokratos.userservice.api.dto.request;
+package com.technokratos.userservice.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -12,11 +12,10 @@ public record UserRegisterRequest (
         @Size(min = 5, max = 30, message = "Username must be between 5 and 30 characters")
         String username,
 
+        @NotBlank
+        String keycloakId,
+
         @NotBlank(message = "Email is required")
         @Email(message = "Invalid email format")
-        String email,
-
-        @NotBlank(message = "Password is required")
-        @Size(min = 6, message = "Password must be at least 6 characters")
-        String password
+        String email
 ) {}
