@@ -18,7 +18,7 @@ import java.util.UUID;
 public class CodeExecutionService {
 
     private final DockerExecutionService dockerExecutionService;
-    
+
     @KafkaListener(groupId = "${spring.kafka.consumer.group-id}", topics = "code-execution-topic")
     public void executeCode(SolutionCreationEvent event) {
         log.info("Received solution execution event: solutionId={}, taskId={}, language={}",

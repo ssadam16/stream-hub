@@ -62,26 +62,26 @@ services:
     networks:
       - streamhub-network
 
-  #  code-executor-service-postgres:
-  #    container_name: code-executor-service-postgres
-  #    image: postgres:latest
-  #    restart: on-failure
-  #    ports:
-  #      - "5435:5432"
-  #    volumes:
-  #      - code-executor-service-postgres-data:/var/lib/postgresql
-  #    environment:
-  #      POSTGRES_USER: postgres
-  #      POSTGRES_PASSWORD: ${DB_PASSWORD}
-  #      POSTGRES_DB: code-executor-service-db
-  #    healthcheck:
-  #      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
-  #      interval: 10s
-  #      timeout: 5s
-  #      start_period: 10s
-  #      retries: 5
-  #    networks:
-  #      - streamhub-network
+#  code-executor-service-postgres:
+#    container_name: code-executor-service-postgres
+#    image: postgres:latest
+#    restart: on-failure
+#    ports:
+#      - "5435:5432"
+#    volumes:
+#      - code-executor-service-postgres-data:/var/lib/postgresql
+#    environment:
+#      POSTGRES_USER: postgres
+#      POSTGRES_PASSWORD: ${DB_PASSWORD}
+#      POSTGRES_DB: code-executor-service-db
+#    healthcheck:
+#      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+#      interval: 10s
+#      timeout: 5s
+#      start_period: 10s
+#      retries: 5
+#    networks:
+#      - streamhub-network
 
   config-server:
     container_name: config-server
@@ -111,8 +111,8 @@ services:
       - /d/docker-containers:/code-execution-temp
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      #      code-executor-service-postgres:
-      #        condition: service_healthy
+#      code-executor-service-postgres:
+#        condition: service_healthy
       config-server:
         condition: service_healthy
     environment:
@@ -203,6 +203,8 @@ services:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       USER_SERVICE_URI: http://user-service:8081
       SOLUTION_SERVICE_URI: http://solution-service:8084
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_SERVICE_URL: http://keycloak:8090
     networks:
       - streamhub-network
 
@@ -223,7 +225,7 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAMES=PLAINTEXT
     volumes:
-      - kafka1_data:/bitnami/kafka
+      - kafka_data1:/bitnami/kafka
     networks:
       - streamhub-network
 
@@ -243,7 +245,7 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAMES=PLAINTEXT
     volumes:
-      - kafka2_data:/bitnami/kafka
+      - kafka_data2:/bitnami/kafka
     networks:
       - streamhub-network
 
@@ -263,7 +265,7 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAMES=PLAINTEXT
     volumes:
-      - kafka3_data:/bitnami/kafka
+      - kafka_data3:/bitnami/kafka
     networks:
       - streamhub-network
 
@@ -292,13 +294,61 @@ services:
     networks:
       - streamhub-network
 
+
+  keycloak-postgres:
+    image: postgres:latest
+    container_name: keycloak-postgres
+    ports:
+      - '5444:5432'
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak123
+    volumes:
+      - keycloak_postgres_data:/var/lib/postgresql
+    networks:
+      - streamhub-network
+    healthcheck:
+      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak123
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8090
+      KC_HOSTNAME_STRICT: false
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: true
+      KC_PROXY: edge
+    ports:
+      - "8090:8080"
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+    networks:
+      - streamhub-network
+    volumes:
+      - ./keycloak-export:/opt/keycloak/data/import
+
 volumes:
   user-service-postgres-data:
   task-service-postgres-data:
   solution-service-postgres-data:
-  kafka2_data:
-  kafka1_data:
-  kafka3_data:
+  kafka_data1:
+  kafka_data2:
+  kafka_data3:
+  keycloak_postgres_data:
 
 networks:
   streamhub-network:
