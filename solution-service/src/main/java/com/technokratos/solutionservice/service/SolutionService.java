@@ -34,12 +34,15 @@ public class SolutionService {
     private final static String EXECUTION_CODE_KAFKA_TOPIC = "code-execution-topic";
 
     @Transactional
-    public UUID solveTask(SolutionRequest dto, CurrentUserInfo user) {
+    public UUID solveTask(SolutionRequest dto, CurrentUserInfo user, UUID taskId) {
         SolutionEntity solution = mapper.toEntity(dto);
         solution.setUserId(user.id());
         solution.setStatus(SolutionStatus.PENDING);
+        solution.setTaskId(taskId);
 
         SolutionEntity savedSolution = solutionRepository.save(solution);
+
+        log.debug("Solution saved entity: taskId={}, solutionId={}", savedSolution.getTaskId(), savedSolution.getId());
 
         UUID solutionId = savedSolution.getId();
         kafkaTemplate.send(EXECUTION_CODE_KAFKA_TOPIC, solutionId, mapper.toSolutionCreationEvent(savedSolution));

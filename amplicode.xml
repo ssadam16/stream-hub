@@ -2,26 +2,6 @@
 <project version="4">
   <component name="AmplicodePersistenceUnitSettings">
     <persistence-units>
-      <persistence-unit moduleName="user-service.main" name="Default">
-        <packages>
-          <package value="com.technokratos.userservice" />
-        </packages>
-      </persistence-unit>
-      <persistence-unit moduleName="task-service.main" name="Default">
-        <packages>
-          <package value="com.technokratos.taskservice" />
-        </packages>
-      </persistence-unit>
-      <persistence-unit moduleName="code-executor-service.main" name="Default">
-        <packages>
-          <package value="com.technokratos.codeexecutorservice" />
-        </packages>
-      </persistence-unit>
-      <persistence-unit moduleName="stream-hub.solution-service.main" name="Default">
-        <packages>
-          <package value="com.technokratos.solutionservice" />
-        </packages>
-      </persistence-unit>
       <persistence-unit moduleName="stream-hub.task-service.main" name="Default">
         <packages>
           <package value="com.technokratos.taskservice" />
@@ -30,6 +10,11 @@
       <persistence-unit moduleName="stream-hub.user-service.main" name="Default">
         <packages>
           <package value="com.technokratos.userservice" />
+        </packages>
+      </persistence-unit>
+      <persistence-unit moduleName="stream-hub.solution-service.main" name="Default">
+        <packages>
+          <package value="com.technokratos.solutionservice" />
         </packages>
       </persistence-unit>
       <persistence-unit moduleName="stream-hub.code-executor-service.main" name="Default">

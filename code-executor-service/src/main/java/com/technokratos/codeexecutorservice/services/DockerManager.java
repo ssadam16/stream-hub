@@ -1,29 +1,25 @@
 package com.technokratos.codeexecutorservice.services;
 
 import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerResponse;
-import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
-import com.github.dockerjava.api.exception.ConflictException;
-import com.github.dockerjava.api.exception.DockerException;
-import com.github.dockerjava.api.exception.NotFoundException;
+import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.*;
-import com.technokratos.codeexecutorservice.api.dto.ExecutionResult;
 import com.technokratos.codeexecutorservice.configuration.DockerProperties;
+import com.technokratos.codeexecutorservice.configuration.LanguageConfig;
 import com.technokratos.common.enums.ProgrammingLanguage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -34,9 +30,7 @@ public class DockerManager {
     private final DockerProperties properties;
     private final DockerClient dockerClient;
 
-    private final String JAVA_COMPILE_CMD = "javac";
-
-    private void createImage(String imageName) {
+    private void ensureImageExists(String imageName) {
         try {
             List<Image> images = dockerClient.listImagesCmd().exec();
             boolean imageExists = images.stream()
@@ -52,150 +46,189 @@ public class DockerManager {
                     });
 
             if (!imageExists) {
-                dockerClient.pullImageCmd(imageName)
+                boolean pulled = dockerClient.pullImageCmd(imageName)
                         .exec(new PullImageResultCallback())
                         .awaitCompletion(5, TimeUnit.MINUTES);
-                log.info("Image {} is downloaded", imageName);
+                if (pulled) {
+                    log.info("Image successfully pulled");
+                } else {
+                    log.error("Failed to pull image within timeout");
+                }
             } else {
                 log.info("Image {} is already exists", imageName);
             }
         } catch (Exception e) {
             log.error("Cannot download image", e);
-            throw new DockerException("Image creating failure %s".formatted(e.getMessage()), 500);
+            //todo: че нибудь сделать тут
         }
     }
 
-    public String createContainer(ProgrammingLanguage language, Long memoryLimit, Long cpuCount, String code) {
-        String hostDir = properties.getHostDir();
 
+    public String execCommand(String containerId, String... command) {
         try {
-            Files.createDirectories(Paths.get(hostDir));
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
 
-            Path codeFile = Paths.get(hostDir, "Main.%s".formatted(language.toString().toLowerCase()));
-            Files.write(codeFile, code.getBytes());
-
-            String imageName = resolveImage(language);
-            createImage(imageName);
-
-            CreateContainerResponse container = dockerClient.createContainerCmd(imageName)
-                    .withWorkingDir(properties.getWorkingDir())
-                    .withHostConfig(HostConfig.newHostConfig()
-                            .withMemory(memoryLimit * 1024L * 1024L)
-                            .withCpuCount(cpuCount)
-                            .withBinds((
-                                    new Bind(
-                                            hostDir,
-                                            new Volume(properties.getWorkingDir())
-                                    ))
-                            )
-                            .withAutoRemove(true)
-                    )
-                    .withCmd("sleep", "infinity")
-                    .exec();
-
-            String containerId = container.getId();
-            log.info("Container with ID={} is created", containerId);
-
-            return containerId;
-        } catch (NotFoundException | ConflictException e) {
-            log.error("Cannot create container", e);
-            throw new DockerException("Container creating failure: %s".formatted(e.getMessage()), 500);
-        } catch (IOException e) {
-            log.error("Cannot create directory", e);
-            throw new DockerException("Directory creating failure: %s".formatted(e.getMessage()), 500);
-        }
-    }
-
-    public ExecutionResult processConsoleJavaCode(String containerId, ProgrammingLanguage language) {
-        try {
-            dockerClient.startContainerCmd(containerId).exec();
-            log.info("Container ID={} has started", containerId);
-
-            ExecCreateCmdResponse compileCmd = dockerClient.execCreateCmd(containerId)
-                    .withCmd("javac", "Main.java")
+            var execCmd = dockerClient.execCreateCmd(containerId)
+                    .withCmd(command)
                     .withAttachStdout(true)
                     .withAttachStderr(true)
                     .exec();
 
-            log.info("Code has compiled: containerId = {}", containerId);
-
-            String compileResult = execCommand(containerId, compileCmd);
-            if (compileResult.toLowerCase().contains("error") ||
-                    compileResult.toLowerCase().contains("exception") ||
-                    compileResult.toLowerCase().contains("fail")) {
-                log.warn("Compilation error: {}", compileResult);
-
-                return ExecutionResult.builder()
-                        .containerId(containerId)
-                        .isSuccess(false)
-                        .output(compileResult)
-                        .build();
+            try (var callback = dockerClient.execStartCmd(execCmd.getId())
+                    .exec(new ResultCallbackTemplate<>() {
+                        @Override
+                        public void onNext(Frame frame) {
+                            try {
+                                if (frame.getStreamType() == StreamType.STDOUT) {
+                                    stdout.write(frame.getPayload());
+                                } else {
+                                    stderr.write(frame.getPayload());
+                                }
+                            } catch (IOException e) {
+                                log.error("Error reading exec output", e);
+                            }
+                        }
+                    })) {
+                callback.awaitCompletion();
             }
 
-            ExecCreateCmdResponse runCmd = dockerClient.execCreateCmd(containerId)
-                    .withCmd("java", "Main")
-                    .withAttachStdout(true)
-                    .withAttachStderr(true)
-                    .exec();
+            String output = stdout.toString();
+            String error = stderr.toString();
 
-            log.info("Program has started: containerId = {}", containerId);
+            if (!error.isEmpty()) {
+                log.debug("Exec stderr: {}", error);
+            }
 
-            String output = execCommand(containerId, runCmd);
-
-            return ExecutionResult.builder()
-                    .containerId(containerId)
-                    .isSuccess(!output.contains("Exception"))
-                    .output(output)
-                    .build();
+            return output;
 
         } catch (Exception e) {
-            throw new DockerException("Cannot complete command execution", 500);
-        } finally {
-            cleanUp(containerId);
+            log.error("Failed to exec command in container", e);
+            return "Error: " + e.getMessage();
         }
     }
 
-    private void cleanUp(String containerId) {
-        if (containerId != null) {
-            dockerClient.killContainerCmd(containerId).exec();
-            dockerClient.removeContainerCmd(containerId).exec();
+    public String createContainer(ProgrammingLanguage language, String hostFilePath, UUID solutionId, LanguageConfig config) {
+        String imageName = resolveImage(language);
+        ensureImageExists(imageName);
 
+        Path hostPath = Paths.get(hostFilePath);
+        String hostDir = hostPath.getParent().toString();
+        log.debug("HostDir: {}", hostDir);
+        String containerWorkDir = config.getWorkingDir();
+
+        log.info("Mounting {} -> {}", hostDir, containerWorkDir);
+
+        Path bindPath = Paths.get(properties.getBindPath());
+
+        if (!Files.exists(bindPath) && !Files.isDirectory(bindPath)) {
             try {
-                Files.walk(Paths.get(properties.getHostDir()))
-                        .sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(File::delete);
+                Files.createDirectory(bindPath);
             } catch (IOException e) {
-                log.warn("Cannot walk to directory");
+                log.error("Failed to create directory: {}", bindPath.toAbsolutePath());
+                throw new RuntimeException("Failed to create bind host path");
             }
         }
-    }
 
-    private String execCommand(String containerId, ExecCreateCmdResponse cmd) throws InterruptedException {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        HostConfig hostConfig = HostConfig.newHostConfig()
+                .withMemory(config.getMemoryMB() * 1024L * 1024L)
+                .withCpuCount(config.getCpuCount())
+                .withNetworkMode("none")
+                .withMemorySwap(0L)
+                .withBinds(new Bind("%s/solution-%s".formatted(properties.getBindPath(), solutionId), new Volume(containerWorkDir)));
 
-        dockerClient.execStartCmd(cmd.getId())
-                .exec(new ResultCallback.Adapter<Frame>() {
-                    @Override
-                    public void onNext(Frame frame) {
-                        try {
-                            output.write(frame.getPayload());
-                        } catch (IOException e) {
-                            log.error("Cannot write data", e);
-                        }
-                    }
-                }).awaitCompletion(10, TimeUnit.SECONDS);
+        CreateContainerResponse container = dockerClient.createContainerCmd(imageName)
+                .withHostConfig(hostConfig)
+                .withWorkingDir(containerWorkDir)
+                .withCmd(config.getCommand())
+                .withAttachStdout(true)
+                .withAttachStderr(true)
+                .exec();
 
-        return output.toString().trim();
+        log.info("Created container {} for language {} with command: {}",
+                container.getId(), language, String.join(" ", config.getCommand()));
+
+        return container.getId();
     }
 
     private String resolveImage(ProgrammingLanguage language) {
-        if (language == ProgrammingLanguage.JAVA) {
-            return properties.getJavaImage();
+        if (language.equals(ProgrammingLanguage.JAVA)) {
+            return properties.getImages().getJava();
         } else {
             log.warn("Language {} is not supported", language);
-            throw new IllegalStateException("Language %s is not supported".formatted(language));
+            throw new IllegalStateException("This language is not supported");
         }
     }
 
+    public void startContainer(String containerId) {
+        try {
+            dockerClient.startContainerCmd(containerId).exec();
+            log.debug("Started container: {}", containerId);
+        } catch (Exception e) {
+            log.error("Failer to start container {}: {}", containerId, e.getMessage());
+        }
+    }
+
+    public String waitForContainer(String containerId, int timeoutSeconds) {
+        try {
+            log.debug(" Debug: checking files in container...");
+
+            String lsOutput = execCommand(containerId, "ls", "-la", "/workspace");
+            log.debug("Files in /workspace:\n{}", lsOutput);
+
+            String pwdOutput = execCommand(containerId, "pwd");
+            log.debug("Current working directory: {}", pwdOutput);
+
+            boolean finished = dockerClient.waitContainerCmd(containerId)
+                    .exec(new WaitContainerResultCallback())
+                    .awaitCompletion(timeoutSeconds, TimeUnit.SECONDS);
+
+            if (!finished) {
+                log.warn("Container {} did not finish within {} seconds, killing...", containerId, timeoutSeconds);
+                dockerClient.killContainerCmd(containerId).exec();
+                return "Execution timeout after " + timeoutSeconds + " seconds";
+            }
+
+            return getContainerLogs(containerId);
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for container", e);
+        }
+    }
+
+    public void removeContainer(String containerId) {
+        try {
+            dockerClient.removeContainerCmd(containerId)
+                    .withForce(true)
+                    .exec();
+            log.debug("Removed container: {}", containerId);
+        } catch (Exception e) {
+            log.warn("Failed to remove container {}: {}", containerId, e.getMessage());
+        }
+    }
+
+
+    private String getContainerLogs(String containerId) {
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+            dockerClient.logContainerCmd(containerId)
+                    .withStdOut(true)
+                    .withStdErr(true)
+                    .exec(new ResultCallbackTemplate<>() {
+                        @Override
+                        public void onNext(Frame object) {
+                            try {
+                                byteArrayOutputStream.write(object.getPayload());
+                            } catch (IOException e) {
+                                log.error("Error writing log", e);
+                            }
+                        }
+                    })
+                    .awaitCompletion();
+            return byteArrayOutputStream.toString();
+        } catch (IOException | InterruptedException e) {
+            log.error("Failed to get container logs", e);
+            return "Failed to get execution logs";
+        }
+    }
 }
