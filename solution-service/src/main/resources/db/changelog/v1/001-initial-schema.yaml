@@ -13,6 +13,5 @@ databaseChangeLog:
                 status       VARCHAR(50) DEFAULT 'PENDING' check (status in ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')),
                 code         TEXT        NOT NULL,
                 created_at   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
-                updated_at   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (task_id, user_id)
+                updated_at   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP
               );

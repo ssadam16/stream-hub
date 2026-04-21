@@ -2,28 +2,34 @@ package com.technokratos.codeexecutorservice.configuration;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 @Component
 @Getter
 @Setter
-@ConfigurationProperties(prefix = "docker.http-client")
+@ConfigurationProperties(prefix = "docker")
 public class DockerProperties {
 
-    private Integer maxConnections;
+    private HttpClient httpClient = new HttpClient();
 
-    private Integer connectionTimeout;
+    private Images images = new Images();
 
-    private Integer responseTimeout;
+    private String bindPath;
 
-    @Value("${docker.images.java}")
-    private String javaImage;
+    @Getter
+    @Setter
+    public static class HttpClient {
+        private Integer maxConnections;
+        private Integer connectionTimeout;
+        private Integer responseTimeout;
+    }
 
-    @Value("${docker.host-dir}")
-    private String hostDir;
-
-    @Value("${docker.working-dir}")
-    private String workingDir;
+    @Getter
+    @Setter
+    public static class Images {
+        private String java;
+        private String python;
+        private String javascript;
+    }
 }
