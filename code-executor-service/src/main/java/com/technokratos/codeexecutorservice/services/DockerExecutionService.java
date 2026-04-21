@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,14 +22,16 @@ public class DockerExecutionService {
     private final DockerManager dockerManager;
 
     public String executeCode(UUID solutionId, String code, ProgrammingLanguage language) {
+        log.info("Received request to execute code: {}. Language: {}", code, language.name());
+
         Path tempFile = null;
         String containerId = null;
 
         try {
-            LanguageConfig config = getLanguageConfig(language, solutionId);
+            LanguageConfig config = getLanguageConfig(language);
             tempFile = createTempFile(solutionId, code, language);
 
-            log.info("Created temp file: {}", tempFile.toAbsolutePath());
+            log.debug("Created temp file: {}", tempFile.toAbsolutePath());
 
             containerId = dockerManager.createContainer(
                     language,
@@ -41,10 +42,8 @@ public class DockerExecutionService {
 
             log.info("Container created: {}, starting execution...", containerId);
 
-            // ЗАПУСКАЕМ КОНТЕЙНЕР
             dockerManager.startContainer(containerId);
 
-            // ЖДЕМ ЗАВЕРШЕНИЯ И ПОЛУЧАЕМ ЛОГИ
             String logs = dockerManager.waitForContainer(containerId, config.getTimeout());
 
             log.info("Execution completed for solution: {}", solutionId);
@@ -65,12 +64,9 @@ public class DockerExecutionService {
     private void cleanTempFile(Path tempFile) {
         if (tempFile != null) {
             try {
-                // Получаем родительскую директорию (solution-xxx)
                 Path parentDir = tempFile.getParent();
 
-                // Проверяем, что это не корневая директория /code-execution-temp
                 if (parentDir != null && !parentDir.equals(Paths.get("/code-execution-temp"))) {
-                    // Рекурсивно удаляем всю директорию solution-xxx
                     try (Stream<Path> paths = Files.walk(parentDir)) {
                         paths.sorted(Comparator.reverseOrder())
                                 .forEach(path -> {
@@ -93,7 +89,7 @@ public class DockerExecutionService {
         }
     }
 
-    private LanguageConfig getLanguageConfig(ProgrammingLanguage language, UUID solutionId) {
+    private LanguageConfig getLanguageConfig(ProgrammingLanguage language) {
         return switch (language) {
             case JAVA -> LanguageConfig.builder()
                     .memoryMB(512L)
@@ -127,7 +123,6 @@ public class DockerExecutionService {
         Path tempFile = solutionDir.resolve(fileName + extension);
         Files.writeString(tempFile, code);
 
-        log.info("🔥🔥🔥 TEMP FILE CREATED AT: {}", tempFile.toAbsolutePath());
         log.debug("Created file in volume: {}", tempFile);
 
         return tempFile;

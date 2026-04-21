@@ -3,8 +3,7 @@ docker:
     max-connections: 100
     connection-timeout: 45
     response-timeout: 60
-  bind-path:
-    D:\docker-containers\solution-
+  bind-path: ${BIND_PATH:/code-execution-temp}
   images:
     java: eclipse-temurin:21-jdk
 
@@ -31,8 +30,7 @@ logging:
 
 services:
   task-service:
-    uri:
-      ${TASK_SERVICE_URI: http://localhost:8082/api}
+    uri: ${TASK_SERVICE_URI:http://localhost:8082/api}
 
 server:
   port:

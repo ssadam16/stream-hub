@@ -12,8 +12,6 @@ public record SolutionCreationEvent (
         UUID solutionId,
         UUID taskId,
         ProgrammingLanguage language,
-        String code,
-        SolutionStatus status,
-        Instant createdAt
+        String code
 ) {
 }

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -113,18 +114,28 @@ public class DockerManager {
 
         Path hostPath = Paths.get(hostFilePath);
         String hostDir = hostPath.getParent().toString();
-        log.info("hostDir: {}", hostDir);
+        log.debug("HostDir: {}", hostDir);
         String containerWorkDir = config.getWorkingDir();
 
         log.info("Mounting {} -> {}", hostDir, containerWorkDir);
+
+        Path bindPath = Paths.get(properties.getBindPath());
+
+        if (!Files.exists(bindPath) && !Files.isDirectory(bindPath)) {
+            try {
+                Files.createDirectory(bindPath);
+            } catch (IOException e) {
+                log.error("Failed to create directory: {}", bindPath.toAbsolutePath());
+                throw new RuntimeException("Failed to create bind host path");
+            }
+        }
 
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withMemory(config.getMemoryMB() * 1024L * 1024L)
                 .withCpuCount(config.getCpuCount())
                 .withNetworkMode("none")
                 .withMemorySwap(0L)
-                .withBinds(new Bind("%s%s".formatted(properties.getBindPath(), solutionId), new Volume(containerWorkDir)));
-                // монтируем реальную директорию на хосте
+                .withBinds(new Bind("%s/solution-%s".formatted(properties.getBindPath(), solutionId), new Volume(containerWorkDir)));
 
         CreateContainerResponse container = dockerClient.createContainerCmd(imageName)
                 .withHostConfig(hostConfig)
@@ -168,7 +179,6 @@ public class DockerManager {
             String pwdOutput = execCommand(containerId, "pwd");
             log.debug("Current working directory: {}", pwdOutput);
 
-            // Запускаем контейнер и ждем
             boolean finished = dockerClient.waitContainerCmd(containerId)
                     .exec(new WaitContainerResultCallback())
                     .awaitCompletion(timeoutSeconds, TimeUnit.SECONDS);
