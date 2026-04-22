@@ -1,8 +1,8 @@
-package com.technokratos.taskservice.api.dto.response;
+package com.technokratos.common.dto;
 
 import com.technokratos.common.enums.TaskDifficulty;
 import com.technokratos.common.enums.TaskTestType;
-import com.technokratos.common.dto.tests.ConsoleTestCaseResponse;
+import com.technokratos.common.dto.tests.TestCasePayload;
 
 import java.util.List;
 import java.util.UUID;
@@ -12,6 +12,9 @@ public record TaskResponse(
         String title,
         String condition,
         TaskDifficulty difficulty,
+        UUID authorId,
         TaskTestType type,
-        List<ConsoleTestCaseResponse> testCases
+        Integer timeLimit,
+        Integer memoryLimit,
+        List<TestCasePayload> testCases
 ) {}

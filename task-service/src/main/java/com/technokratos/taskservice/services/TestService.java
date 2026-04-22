@@ -1,6 +1,6 @@
 package com.technokratos.taskservice.services;
 
-import com.technokratos.common.dto.tests.ConsoleTestCaseResponse;
+import com.technokratos.common.dto.tests.TestCasePayload;
 import com.technokratos.taskservice.entities.tests.ConsoleTestCase;
 import com.technokratos.taskservice.mappers.ConsoleTestCaseMapper;
 import com.technokratos.taskservice.repositories.ConsoleTestCaseRepository;
@@ -19,7 +19,7 @@ public class TestService {
     private final ConsoleTestCaseRepository testCaseRepository;
     private final ConsoleTestCaseMapper testCaseMapper;
 
-    public List<ConsoleTestCaseResponse> getAllByTaskId(UUID taskId) {
+    public List<TestCasePayload> getAllByTaskId(UUID taskId) {
         log.info("Getting all tests for task {}", taskId);
         List<ConsoleTestCase> allByTaskId = testCaseRepository.getAllByTask_Id(taskId);
 

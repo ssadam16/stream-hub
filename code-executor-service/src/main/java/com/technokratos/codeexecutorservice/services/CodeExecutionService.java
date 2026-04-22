@@ -1,15 +1,13 @@
 package com.technokratos.codeexecutorservice.services;
 
-import com.technokratos.common.dto.tests.ConsoleTestCaseResponse;
-import com.technokratos.common.events.SolutionCreationEvent;
+import com.technokratos.common.events.CodeExecutionRequest;
+import com.technokratos.common.events.CodeExecutionResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -18,24 +16,23 @@ import java.util.UUID;
 public class CodeExecutionService {
 
     private final DockerExecutionService dockerExecutionService;
+    private final KafkaTemplate<UUID, CodeExecutionResult> kafkaTemplate;
 
     @KafkaListener(groupId = "${spring.kafka.consumer.group-id}", topics = "code-execution-topic")
-    public void executeCode(SolutionCreationEvent event) {
+    public void executeCode(CodeExecutionRequest event) {
         log.info("Received solution execution event: solutionId={}, taskId={}, language={}",
                 event.solutionId(), event.taskId(), event.language());
 
         try {
+            CodeExecutionResult executionResult = dockerExecutionService.executeCode(event.solutionId(), event);
 
-            String executionResult = dockerExecutionService.executeCode(event.solutionId(), event.code(), event.language());
-
-
-            log.info("Code execution completed for solution: {}, result length: {}",
-                    event.solutionId(), executionResult.length());
+            log.info("Code execution completed for solution: {}, passedTests count: {}",
+                    event.solutionId(), executionResult.passedTests());
 
             log.debug("LOGS FROM CONTAINER:\n {}", executionResult);
 
-            // TODO: Отправить результат обратно в Kafka
-            // TODO: Обновить статус решения в БД через отдельный сервис
+            kafkaTemplate.send("code-execution-results", event.solutionId(), executionResult);
+            log.info("Sent execution result to Kafka for solution: {}", event.solutionId());
         } catch (Exception e) {
             log.error("Failed to execute code for solution: {}", event.solutionId(), e);
             // TODO: Отправить сообщение об ошибке
