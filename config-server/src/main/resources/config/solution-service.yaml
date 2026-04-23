@@ -30,3 +30,5 @@ spring:
         spring.json.add.type.headers: true
       retries: 3
       acks: all
+
+task-service-uri: ${TASK_SERVICE_URI:http://localhost:8082/api/tasks}

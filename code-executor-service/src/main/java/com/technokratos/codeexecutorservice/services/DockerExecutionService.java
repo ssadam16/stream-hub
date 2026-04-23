@@ -1,7 +1,14 @@
 package com.technokratos.codeexecutorservice.services;
 
 import com.technokratos.codeexecutorservice.configuration.LanguageConfig;
+import com.technokratos.common.dto.ExecResult;
+import com.technokratos.common.dto.tests.TestCasePayload;
+import com.technokratos.common.dto.tests.TestCaseResult;
+import com.technokratos.common.enums.ErrorType;
 import com.technokratos.common.enums.ProgrammingLanguage;
+import com.technokratos.common.enums.SolutionStatus;
+import com.technokratos.common.events.CodeExecutionRequest;
+import com.technokratos.common.events.CodeExecutionResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -10,8 +17,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Comparator;
-import java.util.UUID;
+import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 @Service
@@ -21,20 +28,21 @@ public class DockerExecutionService {
 
     private final DockerManager dockerManager;
 
-    public String executeCode(UUID solutionId, String code, ProgrammingLanguage language) {
-        log.info("Received request to execute code: {}. Language: {}", code, language.name());
+    public CodeExecutionResult executeCode(UUID solutionId, CodeExecutionRequest request) {
+        log.info("Executing code for solution: {}, language: {}", solutionId, request.language());
+        log.info("Request to execute code, Code execution request: {}", request);
 
         Path tempFile = null;
         String containerId = null;
 
         try {
-            LanguageConfig config = getLanguageConfig(language);
-            tempFile = createTempFile(solutionId, code, language);
+            LanguageConfig config = getLanguageConfig(request.language());
+            tempFile = createTempFile(solutionId, request.code(), request.language());
 
             log.debug("Created temp file: {}", tempFile.toAbsolutePath());
 
             containerId = dockerManager.createContainer(
-                    language,
+                    request.language(),
                     tempFile.toString(),
                     solutionId,
                     config
@@ -43,22 +51,139 @@ public class DockerExecutionService {
             log.info("Container created: {}, starting execution...", containerId);
 
             dockerManager.startContainer(containerId);
+            long startTime = System.currentTimeMillis();
 
-            String logs = dockerManager.waitForContainer(containerId, config.getTimeout());
+            ExecResult compileResult = dockerManager.execCommand(
+                    containerId,
+                    "javac", "/workspace/Main.java"
+            );
+
+            log.info("Compilation finished: exitCode={}, stdout='{}', stderr='{}'",
+                    compileResult.exitCode(),
+                    compileResult.stdout(),
+                    compileResult.stderr());
+
+
+            if (compileResult.exitCode() != 0) {
+                dockerManager.removeContainer(containerId);
+                return CodeExecutionResult.builder()
+                        .solutionId(solutionId)
+                        .totalTests(request.testCases().size())
+                        .passedTests(0)
+                        .totalTimeMs(compileResult.elapsedMs())
+                        .status(SolutionStatus.COMPILATION_ERROR)
+                        .errorMessage(compileResult.stderr())
+                        .build();
+            }
+
+            List<TestCaseResult> testResults = new ArrayList<>();
+
+            for (TestCasePayload test : request.testCases()) {
+                log.info("Running test {}, input='{}', expectedOutput='{}', timeLimit={}",
+                        test.id(), test.input(), test.expectedOutput(), request.timeLimit());
+
+                ExecResult runResult = dockerManager.execWithStdin(
+                        containerId,
+                        test.input() + "\n",
+                        request.timeLimit(),
+                        "java", "-cp", "/workspace", "Main"
+                );
+
+                log.info("Test {} finished: timedOut={}, exitCode={}, stdout='{}', stderr='{}'",
+                        test.id(), runResult.timedOut(), runResult.exitCode(),
+                        runResult.stdout(), runResult.stderr());
+
+                if (runResult.timedOut()) {
+                    testResults.add(new TestCaseResult(
+                            test.id(),
+                            false,
+                            "",
+                            runResult.elapsedMs(),
+                            ErrorType.TIMEOUT
+                    ));
+                    continue;
+                }
+
+                String actual = runResult.stdout().trim();
+                String expected = test.expectedOutput().trim();
+                boolean passed = actual.equals(expected);
+
+                testResults.add(new TestCaseResult(
+                        test.id(),
+                        passed,
+                        actual,
+                        runResult.elapsedMs(),
+                        passed ? ErrorType.OK : ErrorType.WRONG_ANSWER
+                ));
+            }
+
+            long totalTimeMs = System.currentTimeMillis() - startTime;
+            dockerManager.removeContainer(containerId);
 
             log.info("Execution completed for solution: {}", solutionId);
 
-            return logs;
+            return CodeExecutionResult.builder()
+                    .testResults(testResults)
+                    .totalTests(request.testCases().size())
+                    .status(calculateStatus(testResults))
+                    .solutionId(solutionId)
+                    .totalTimeMs(totalTimeMs)
+                    .passedTests(testResults.stream().filter(t -> t.errorType().equals(ErrorType.OK)).count())
+                    .build();
+
 
         } catch (Exception e) {
             log.error("Failed to execute code for solution: {}", solutionId, e);
-            throw new RuntimeException("Execution failed: " + e.getMessage(), e);
+
+            return CodeExecutionResult.builder()
+                    .solutionId(solutionId)
+                    .status(SolutionStatus.INTERNAL_ERROR)
+                    .passedTests(0)
+                    .totalTests(request.testCases().size())
+                    .testResults(new ArrayList<>())
+                    .errorMessage("Execution failed: %s".formatted(e.getMessage()))
+                    .build();
+
+
         } finally {
             if (containerId != null) {
                 dockerManager.removeContainer(containerId);
             }
             cleanTempFile(tempFile);
         }
+    }
+
+    private SolutionStatus calculateStatus(List<TestCaseResult> testResults) {
+        if (testResults.isEmpty()) {
+            return SolutionStatus.INTERNAL_ERROR;
+        }
+
+        boolean hasTimeout = testResults.stream()
+                .anyMatch(r -> r.errorType() == ErrorType.TIMEOUT);
+        if (hasTimeout) {
+            return SolutionStatus.TIME_LIMIT_EXCEEDED;
+        }
+
+        // Проверяем есть ли хотя бы один RUNTIME_ERROR
+        boolean hasRuntimeError = testResults.stream()
+                .anyMatch(r -> r.errorType() == ErrorType.RUNTIME_ERROR);
+        if (hasRuntimeError) {
+            return SolutionStatus.RUNTIME_ERROR;
+        }
+
+        // Проверяем есть ли хотя бы один WRONG_ANSWER
+        boolean hasWrongAnswer = testResults.stream()
+                .anyMatch(r -> r.errorType() == ErrorType.WRONG_ANSWER);
+        if (hasWrongAnswer) {
+            return SolutionStatus.PARTIALLY_COMPLETED;
+        }
+
+        // Если все прошли
+        boolean allPassed = testResults.stream()
+                .allMatch(TestCaseResult::passed);
+
+        return allPassed ? SolutionStatus.COMPLETED : SolutionStatus.PARTIALLY_COMPLETED;
+
     }
 
     private void cleanTempFile(Path tempFile) {
