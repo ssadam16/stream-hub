@@ -3,7 +3,7 @@ package com.technokratos.taskservice.api.controllers;
 import com.technokratos.common.exceptions.ExceptionMessage;
 import com.technokratos.common.exceptions.ValidationExceptionMessage;
 import com.technokratos.taskservice.api.dto.request.TaskCreatingRequest;
-import com.technokratos.taskservice.api.dto.response.TaskResponse;
+import com.technokratos.common.dto.TaskResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;

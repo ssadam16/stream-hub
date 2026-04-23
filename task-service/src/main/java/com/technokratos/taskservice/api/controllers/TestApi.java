@@ -1,6 +1,6 @@
 package com.technokratos.taskservice.api.controllers;
 
-import com.technokratos.common.dto.tests.ConsoleTestCaseResponse;
+import com.technokratos.common.dto.tests.TestCasePayload;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,6 +12,6 @@ import java.util.UUID;
 public interface TestApi {
 
     @GetMapping("/tasks/{taskId}")
-    List<ConsoleTestCaseResponse> getAllTestsForTask(@PathVariable UUID taskId);
+    List<TestCasePayload> getAllTestsForTask(@PathVariable UUID taskId);
 
 }

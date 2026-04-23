@@ -1,8 +1,10 @@
 package com.technokratos.solutionservice.service;
 
-import com.technokratos.common.dto.CurrentUserInfo;
+import com.technokratos.common.dto.TaskResponse;
 import com.technokratos.common.enums.SolutionStatus;
-import com.technokratos.common.events.SolutionCreationEvent;
+import com.technokratos.common.events.CodeExecutionRequest;
+import com.technokratos.common.events.CodeExecutionResult;
+import com.technokratos.solutionservice.client.TaskClient;
 import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.dto.SolutionResponse;
 import com.technokratos.solutionservice.handler.exceptions.SolutionNotFound;
@@ -29,24 +31,54 @@ public class SolutionService {
 
     private final SolutionRepository solutionRepository;
 
-    private final KafkaTemplate<UUID, SolutionCreationEvent> kafkaTemplate;
+    private final KafkaTemplate<UUID, CodeExecutionRequest> kafkaTemplate;
 
     private final static String EXECUTION_CODE_KAFKA_TOPIC = "code-execution-topic";
+    private final TaskClient taskClient;
 
     @Transactional
-    public UUID solveTask(SolutionRequest dto, CurrentUserInfo user, UUID taskId) {
+    public UUID solveTask(SolutionRequest dto, UUID taskId) {
+        UUID userId = UUID.randomUUID();
         SolutionEntity solution = mapper.toEntity(dto);
-        solution.setUserId(user.id());
+        solution.setUserId(userId);//добавить userId
         solution.setStatus(SolutionStatus.PENDING);
         solution.setTaskId(taskId);
 
         SolutionEntity savedSolution = solutionRepository.save(solution);
 
-        log.debug("Solution saved entity: taskId={}, solutionId={}", savedSolution.getTaskId(), savedSolution.getId());
+        log.debug("Solution saved entity: taskId={}, solutionId={}",
+                savedSolution.getTaskId(),
+                savedSolution.getId()
+        );
 
         UUID solutionId = savedSolution.getId();
-        kafkaTemplate.send(EXECUTION_CODE_KAFKA_TOPIC, solutionId, mapper.toSolutionCreationEvent(savedSolution));
+
+        TaskResponse task = taskClient.getTask(taskId);
+
+        CodeExecutionRequest codeExecutionRequest = getCodeExecutionRequest(dto,userId , taskId, savedSolution, solutionId, task);
+
+        kafkaTemplate.send(EXECUTION_CODE_KAFKA_TOPIC, solutionId, codeExecutionRequest);
+
         return solutionId;
+    }
+
+    private CodeExecutionRequest getCodeExecutionRequest(SolutionRequest dto, UUID userId, UUID taskId, SolutionEntity savedSolution, UUID solutionId, TaskResponse task) {
+        return CodeExecutionRequest.builder()
+                .code(savedSolution.getCode())
+                .taskId(taskId)
+                .solutionId(solutionId)
+                .language(dto.language())
+                .userId(userId)
+                .memoryLimit(task.memoryLimit())
+                .testCases(task.testCases())
+                .timeLimit(task.timeLimit())
+                .build();
+    }
+
+    @KafkaListener(topics = "code-execution-results", groupId = "${spring.kafka.consumer.group-id}")
+    public CodeExecutionResult receiveCodeExecutionResult(CodeExecutionResult codeExecutionResult) {
+        log.info("Code execution result: {}", codeExecutionResult);
+        return codeExecutionResult;
     }
 
     public Page<SolutionResponse> getAll(Pageable pageable) {

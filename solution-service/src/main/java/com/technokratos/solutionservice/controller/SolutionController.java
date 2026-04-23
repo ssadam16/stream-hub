@@ -1,7 +1,6 @@
 package com.technokratos.solutionservice.controller;
 
-import com.technokratos.common.annotations.CurrentUser;
-import com.technokratos.common.dto.CurrentUserInfo;
+
 import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.dto.SolutionResponse;
 import com.technokratos.solutionservice.service.SolutionService;
@@ -41,11 +40,13 @@ public class SolutionController {
         return solutionService.getOne(id);
     }
 
-    @PostMapping("/{taskId}")
+    @PostMapping("/tasks/{taskId}/solve")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public UUID solveTask(@RequestBody @Valid SolutionRequest dto, @CurrentUser CurrentUserInfo user,
-                          @PathVariable UUID taskId) {
-        return solutionService.solveTask(dto, user, taskId);
+    public UUID solveTask(
+            @RequestBody @Valid SolutionRequest dto,
+            @PathVariable UUID taskId
+    ) {
+        return solutionService.solveTask(dto, taskId);
     }
 }
 
