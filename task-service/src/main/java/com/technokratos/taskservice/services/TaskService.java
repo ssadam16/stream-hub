@@ -1,7 +1,7 @@
 package com.technokratos.taskservice.services;
 
 import com.technokratos.taskservice.api.dto.request.TaskCreatingRequest;
-import com.technokratos.taskservice.api.dto.response.TaskResponse;
+import com.technokratos.common.dto.TaskResponse;
 import com.technokratos.taskservice.entities.Task;
 import com.technokratos.taskservice.entities.tests.ConsoleTestCase;
 import com.technokratos.taskservice.exceptions.TaskNotFoundException;
@@ -23,7 +23,7 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
-    private final ConsoleTestCaseMapper consoleTestCaseMapper;
+    private final ConsoleTestCaseMapper mapper;
 
     @Transactional
     public TaskResponse create(TaskCreatingRequest request) {
@@ -31,7 +31,7 @@ public class TaskService {
 
         Task task = taskMapper.toTask(request);
 
-        List<ConsoleTestCase> testCases = consoleTestCaseMapper.toConsoleTestCaseList(request.testCases());
+        List<ConsoleTestCase> testCases = mapper.toConsoleTestCaseList(request.testCases());
         testCases.forEach(t -> t.setTask(task));
         task.setTestCases(testCases);
 

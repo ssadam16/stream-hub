@@ -4,22 +4,22 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
-import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.*;
 import com.technokratos.codeexecutorservice.configuration.DockerProperties;
 import com.technokratos.codeexecutorservice.configuration.LanguageConfig;
+import com.technokratos.common.dto.ExecResult;
 import com.technokratos.common.enums.ProgrammingLanguage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -53,28 +53,92 @@ public class DockerManager {
                     log.info("Image successfully pulled");
                 } else {
                     log.error("Failed to pull image within timeout");
+                    throw new RuntimeException("Failed to pull image");
                 }
             } else {
-                log.info("Image {} is already exists", imageName);
+                log.info("Image {} already exists", imageName);
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while pulling image", e);
         } catch (Exception e) {
             log.error("Cannot download image", e);
-            //todo: че нибудь сделать тут
+            throw new RuntimeException("Failed to ensure image exists", e);
         }
     }
 
+    public String createContainer(ProgrammingLanguage language, LanguageConfig config) {
+        String imageName = resolveImage(language);
+        ensureImageExists(imageName);
 
-    public String execCommand(String containerId, String... command) {
+        String containerWorkDir = config.getWorkingDir();
+
+        long memorySwap = config.getMemoryMB() * 1024L * 1024L;
+
+        HostConfig hostConfig = HostConfig.newHostConfig()
+                .withMemory(memorySwap)
+                .withCpuCount(config.getCpuCount())
+                .withPidsLimit(64L)
+                .withMemorySwap(memorySwap)
+                .withNetworkMode("none")
+                .withMemorySwap(0L);
+
+        CreateContainerResponse container = dockerClient.createContainerCmd(imageName)
+                .withHostConfig(hostConfig)
+                .withWorkingDir(containerWorkDir)
+                .withCmd("tail", "-f", "/dev/null")
+                .withAttachStdout(true)
+                .withAttachStderr(true)
+                .exec();
+
+        log.info("Created container {} for language {}", container.getId(), language);
+
+        return container.getId();
+    }
+
+    public void copyFileToContainer(String containerId, String fileName, String code, String remotePath) {
+        try {
+            byte[] fileBytes = code.getBytes(StandardCharsets.UTF_8);
+
+            ByteArrayOutputStream tarStream = new ByteArrayOutputStream();
+            try (TarArchiveOutputStream tar = new TarArchiveOutputStream(tarStream)) {
+                tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+
+                TarArchiveEntry entry = new TarArchiveEntry(fileName);
+                entry.setSize(fileBytes.length);
+                entry.setMode(420); // rw-r--r--
+
+                tar.putArchiveEntry(entry);
+                tar.write(fileBytes);
+                tar.closeArchiveEntry();
+            }
+
+            dockerClient.copyArchiveToContainerCmd(containerId)
+                    .withTarInputStream(new ByteArrayInputStream(tarStream.toByteArray()))
+                    .withRemotePath(remotePath)
+                    .exec();
+
+            log.debug("Copied file {} to container {} at {}", fileName, containerId, remotePath);
+
+        } catch (IOException e) {
+            log.error("Failed to copy file to container", e);
+            throw new RuntimeException("Failed to copy file to container", e);
+        }
+    }
+
+    public ExecResult execCommand(String containerId, String... command) {
         try {
             ByteArrayOutputStream stdout = new ByteArrayOutputStream();
             ByteArrayOutputStream stderr = new ByteArrayOutputStream();
 
             var execCmd = dockerClient.execCreateCmd(containerId)
                     .withCmd(command)
+                    .withAttachStdin(true)
                     .withAttachStdout(true)
                     .withAttachStderr(true)
                     .exec();
 
+            long startTime = System.currentTimeMillis();
             try (var callback = dockerClient.execStartCmd(execCmd.getId())
                     .exec(new ResultCallbackTemplate<>() {
                         @Override
@@ -82,7 +146,7 @@ public class DockerManager {
                             try {
                                 if (frame.getStreamType() == StreamType.STDOUT) {
                                     stdout.write(frame.getPayload());
-                                } else {
+                                } else if (frame.getStreamType() == StreamType.STDERR) {
                                     stderr.write(frame.getPayload());
                                 }
                             } catch (IOException e) {
@@ -92,72 +156,103 @@ public class DockerManager {
                     })) {
                 callback.awaitCompletion();
             }
+            long elapsedMs = System.currentTimeMillis() - startTime;
 
-            String output = stdout.toString();
-            String error = stderr.toString();
+            String output = stdout.toString(StandardCharsets.UTF_8);
+            String error = stderr.toString(StandardCharsets.UTF_8);
+
+            var inspectExec = dockerClient.inspectExecCmd(execCmd.getId()).exec();
+            int exitCode = inspectExec.getExitCodeLong() != null
+                    ? inspectExec.getExitCodeLong().intValue()
+                    : 0;
 
             if (!error.isEmpty()) {
                 log.debug("Exec stderr: {}", error);
             }
 
-            return output;
+            return new ExecResult(output, error, exitCode, elapsedMs, false);
 
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Exec interrupted", e);
         } catch (Exception e) {
-            log.error("Failed to exec command in container", e);
-            return "Error: " + e.getMessage();
+            log.error("Failed to exec command", e);
+            throw new RuntimeException("Exec failed", e);
         }
     }
 
-    public String createContainer(ProgrammingLanguage language, String hostFilePath, UUID solutionId, LanguageConfig config) {
-        String imageName = resolveImage(language);
-        ensureImageExists(imageName);
+    public ExecResult execWithStdin(String containerId, String input, int timeoutSeconds, String... command) {
+        try {
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
 
-        Path hostPath = Paths.get(hostFilePath);
-        String hostDir = hostPath.getParent().toString();
-        log.debug("HostDir: {}", hostDir);
-        String containerWorkDir = config.getWorkingDir();
+            var execCreateResp = dockerClient.execCreateCmd(containerId)
+                    .withCmd(command)
+                    .withWorkingDir("/workspace")
+                    .withAttachStdin(true)
+                    .withAttachStdout(true)
+                    .withAttachStderr(true)
+                    .exec();
 
-        log.info("Mounting {} -> {}", hostDir, containerWorkDir);
+            String execId = execCreateResp.getId();
+            long startTime = System.currentTimeMillis();
 
-        Path bindPath = Paths.get(properties.getBindPath());
+            try (var stdinStream = new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8))) {
 
-        if (!Files.exists(bindPath) && !Files.isDirectory(bindPath)) {
-            try {
-                Files.createDirectory(bindPath);
-            } catch (IOException e) {
-                log.error("Failed to create directory: {}", bindPath.toAbsolutePath());
-                throw new RuntimeException("Failed to create bind host path");
+                var callback = dockerClient.execStartCmd(execId)
+                        .withStdIn(stdinStream)
+                        .exec(new ResultCallbackTemplate<>() {
+                            @Override
+                            public void onNext(Frame frame) {
+                                try {
+                                    if (frame.getStreamType() == StreamType.STDOUT) {
+                                        stdout.write(frame.getPayload());
+                                    } else if (frame.getStreamType() == StreamType.STDERR) {
+                                        stderr.write(frame.getPayload());
+                                    }
+                                } catch (IOException e) {
+                                    log.error("Error reading exec output", e);
+                                }
+                            }
+                        });
+
+                boolean finished = callback.awaitCompletion(timeoutSeconds, TimeUnit.SECONDS);
+                long elapsedMs = System.currentTimeMillis() - startTime;
+
+                if (!finished) {
+                    log.warn("Exec command timed out after {} seconds", timeoutSeconds);
+                    return new ExecResult("", "Timeout", -1, elapsedMs, true);
+                }
+
+                var inspectExec = dockerClient.inspectExecCmd(execId).exec();
+                int exitCode = inspectExec.getExitCodeLong() != null
+                        ? inspectExec.getExitCodeLong().intValue()
+                        : 0;
+
+                return new ExecResult(
+                        stdout.toString(StandardCharsets.UTF_8),
+                        stderr.toString(StandardCharsets.UTF_8),
+                        exitCode,
+                        elapsedMs,
+                        false
+                );
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Exec interrupted", e);
             }
+
+        } catch (Exception e) {
+            log.error("Failed to exec command with stdin", e);
+            throw new RuntimeException("Exec failed", e);
         }
-
-        HostConfig hostConfig = HostConfig.newHostConfig()
-                .withMemory(config.getMemoryMB() * 1024L * 1024L)
-                .withCpuCount(config.getCpuCount())
-                .withNetworkMode("none")
-                .withMemorySwap(0L)
-                .withBinds(new Bind("%s/solution-%s".formatted(properties.getBindPath(), solutionId), new Volume(containerWorkDir)));
-
-        CreateContainerResponse container = dockerClient.createContainerCmd(imageName)
-                .withHostConfig(hostConfig)
-                .withWorkingDir(containerWorkDir)
-                .withCmd(config.getCommand())
-                .withAttachStdout(true)
-                .withAttachStderr(true)
-                .exec();
-
-        log.info("Created container {} for language {} with command: {}",
-                container.getId(), language, String.join(" ", config.getCommand()));
-
-        return container.getId();
     }
 
     private String resolveImage(ProgrammingLanguage language) {
-        if (language.equals(ProgrammingLanguage.JAVA)) {
-            return properties.getImages().getJava();
-        } else {
-            log.warn("Language {} is not supported", language);
-            throw new IllegalStateException("This language is not supported");
-        }
+        return switch (language) {
+            case JAVA -> properties.getImages().getJava();
+            case PYTHON -> properties.getImages().getPython();
+        };
     }
 
     public void startContainer(String containerId) {
@@ -165,35 +260,8 @@ public class DockerManager {
             dockerClient.startContainerCmd(containerId).exec();
             log.debug("Started container: {}", containerId);
         } catch (Exception e) {
-            log.error("Failer to start container {}: {}", containerId, e.getMessage());
-        }
-    }
-
-    public String waitForContainer(String containerId, int timeoutSeconds) {
-        try {
-            log.debug(" Debug: checking files in container...");
-
-            String lsOutput = execCommand(containerId, "ls", "-la", "/workspace");
-            log.debug("Files in /workspace:\n{}", lsOutput);
-
-            String pwdOutput = execCommand(containerId, "pwd");
-            log.debug("Current working directory: {}", pwdOutput);
-
-            boolean finished = dockerClient.waitContainerCmd(containerId)
-                    .exec(new WaitContainerResultCallback())
-                    .awaitCompletion(timeoutSeconds, TimeUnit.SECONDS);
-
-            if (!finished) {
-                log.warn("Container {} did not finish within {} seconds, killing...", containerId, timeoutSeconds);
-                dockerClient.killContainerCmd(containerId).exec();
-                return "Execution timeout after " + timeoutSeconds + " seconds";
-            }
-
-            return getContainerLogs(containerId);
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while waiting for container", e);
+            log.error("Failed to start container {}: {}", containerId, e.getMessage());
+            throw new RuntimeException("Failed to start container", e);
         }
     }
 
@@ -205,30 +273,6 @@ public class DockerManager {
             log.debug("Removed container: {}", containerId);
         } catch (Exception e) {
             log.warn("Failed to remove container {}: {}", containerId, e.getMessage());
-        }
-    }
-
-
-    private String getContainerLogs(String containerId) {
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-            dockerClient.logContainerCmd(containerId)
-                    .withStdOut(true)
-                    .withStdErr(true)
-                    .exec(new ResultCallbackTemplate<>() {
-                        @Override
-                        public void onNext(Frame object) {
-                            try {
-                                byteArrayOutputStream.write(object.getPayload());
-                            } catch (IOException e) {
-                                log.error("Error writing log", e);
-                            }
-                        }
-                    })
-                    .awaitCompletion();
-            return byteArrayOutputStream.toString();
-        } catch (IOException | InterruptedException e) {
-            log.error("Failed to get container logs", e);
-            return "Failed to get execution logs";
         }
     }
 }

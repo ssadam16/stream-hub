@@ -45,6 +45,4 @@ public class Task extends BaseEntity {
     private Integer timeLimit;
 
     private Integer memoryLimit;
-
-
 }

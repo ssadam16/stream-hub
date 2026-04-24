@@ -1,7 +1,7 @@
 package com.technokratos.taskservice.api.controllers;
 
 import com.technokratos.taskservice.api.dto.request.TaskCreatingRequest;
-import com.technokratos.taskservice.api.dto.response.TaskResponse;
+import com.technokratos.common.dto.TaskResponse;
 import com.technokratos.taskservice.services.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,8 +21,6 @@ public class TaskController implements TaskApi {
     public ResponseEntity<TaskResponse> createTask(TaskCreatingRequest request) {
         return new ResponseEntity<>(taskService.create(request), HttpStatus.CREATED);
     }
-
-
 
     @Override
     public ResponseEntity<List<TaskResponse>> getAllTasks() {

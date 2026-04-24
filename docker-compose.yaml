@@ -141,6 +141,7 @@ services:
     environment:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_DATASOURCE_USERNAME: postgres
+      TASK_SERVICE_URI: http://task-service:8082/api/tasks
       SPRING_DATASOURCE_URL: jdbc:postgresql://solution-service-postgres:5432/solution-service-db
       DB_PASSWORD: ${DB_PASSWORD}
       BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
@@ -341,6 +342,38 @@ services:
     volumes:
       - ./keycloak-export:/opt/keycloak/data/import
 
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-root123}
+      MONGO_INITDB_DATABASE: mongo-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - streamhub-network
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME:-root}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD:-root123}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:-root123}@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_ROOT_USERNAME:-root}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_ROOT_PASSWORD:-root123}
+    depends_on:
+      - mongodb
+    networks:
+      - streamhub-network
+
 volumes:
   user-service-postgres-data:
   task-service-postgres-data:
@@ -349,6 +382,7 @@ volumes:
   kafka_data2:
   kafka_data3:
   keycloak_postgres_data:
+  mongo_data:
 
 networks:
   streamhub-network:

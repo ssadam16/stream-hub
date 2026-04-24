@@ -1,7 +1,7 @@
 package com.technokratos.taskservice.mappers;
 
 import com.technokratos.taskservice.api.dto.request.TaskCreatingRequest;
-import com.technokratos.taskservice.api.dto.response.TaskResponse;
+import com.technokratos.common.dto.TaskResponse;
 import com.technokratos.taskservice.entities.Task;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
