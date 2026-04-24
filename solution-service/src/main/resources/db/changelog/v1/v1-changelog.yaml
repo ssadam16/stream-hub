@@ -2,3 +2,6 @@ databaseChangeLog:
   - include:
       file: 001-initial-schema.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 002-add-execution-results-columns.yaml
+      relativeToChangelogFile: true

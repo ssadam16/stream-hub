@@ -11,7 +11,6 @@ public record TestCaseResult(
         boolean passed,
         String actualOutput,
         long executionTimeMs,
-        //long memoryUsedKb,
         ErrorType errorType
 ) {
 }
