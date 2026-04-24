@@ -23,14 +23,23 @@ spring:
         spring.json.add.type.headers: true
       retries: 3
       acks: all
+    listener:
+      missing-topics-fatal: false
+#      max-attempts: 4
+#      backoff:
+#        exponential:
+#          initial: 1000
+#          multiplier: 5
+#          max: 30000
 
 logging:
   level:
     com.technokratos.codeexecutorservice: DEBUG
+    org.springframework.kafka: DEBUG
 
 services:
   task-service:
-    uri: ${TASK_SERVICE_URI:http://localhost:8082/api}
+    uri: ${TASK_SERVICE_URI:http://localhost:8083/api}
 
 server:
   port:
