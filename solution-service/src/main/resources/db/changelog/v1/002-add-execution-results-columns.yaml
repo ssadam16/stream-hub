@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-execution-results-to-solutions
+      author: nongrataqqq
+      changes:
+        - addColumn:
+            tableName: solutions
+            columns:
+              - column:
+                  name: passed_tests
+                  type: BIGINT
+              - column:
+                  name: total_tests
+                  type: INTEGER
+              - column:
+                  name: total_time_ms
+                  type: BIGINT
+              - column:
+                  name: test_results
+                  type: JSONB
+        - sql:
+            sql: |
+              CREATE INDEX idx_solutions_status ON solutions(status);
+              CREATE INDEX idx_solutions_created_at ON solutions(created_at DESC);

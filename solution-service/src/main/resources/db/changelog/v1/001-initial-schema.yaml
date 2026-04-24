@@ -10,7 +10,7 @@ databaseChangeLog:
                 task_id      UUID        NOT NULL,
                 user_id      UUID        NOT NULL,
                 language     VARCHAR(50) NOT NULL CHECK (language in ('JAVA', 'PYTHON')),
-                status       VARCHAR(50) DEFAULT 'PENDING' check (status in ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')),
+                status       VARCHAR(50) DEFAULT 'PENDING',
                 code         TEXT        NOT NULL,
                 created_at   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
                 updated_at   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP

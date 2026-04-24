@@ -1,5 +1,7 @@
 package com.technokratos.solutionservice.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.technokratos.common.dto.TaskResponse;
 import com.technokratos.common.enums.SolutionStatus;
 import com.technokratos.common.events.CodeExecutionRequest;
@@ -7,6 +9,7 @@ import com.technokratos.common.events.CodeExecutionResult;
 import com.technokratos.solutionservice.client.TaskClient;
 import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.dto.SolutionResponse;
+import com.technokratos.solutionservice.dto.SolutionResultResponse;
 import com.technokratos.solutionservice.handler.exceptions.SolutionNotFound;
 import com.technokratos.solutionservice.mapper.SolutionMapper;
 import com.technokratos.solutionservice.model.SolutionEntity;
@@ -62,6 +65,13 @@ public class SolutionService {
         return solutionId;
     }
 
+    public SolutionResultResponse getResult(UUID solutionId) {
+        SolutionEntity solution = solutionRepository.findById(solutionId)
+                .orElseThrow(() -> new SolutionNotFound(solutionId));
+
+        return mapper.toResponse(solution);
+    }
+
     private CodeExecutionRequest getCodeExecutionRequest(SolutionRequest dto, UUID userId, UUID taskId, SolutionEntity savedSolution, UUID solutionId, TaskResponse task) {
         return CodeExecutionRequest.builder()
                 .code(savedSolution.getCode())
@@ -76,9 +86,20 @@ public class SolutionService {
     }
 
     @KafkaListener(topics = "code-execution-results", groupId = "${spring.kafka.consumer.group-id}")
-    public CodeExecutionResult receiveCodeExecutionResult(CodeExecutionResult codeExecutionResult) {
-        log.info("Code execution result: {}", codeExecutionResult);
-        return codeExecutionResult;
+    public void onExecutionResult(CodeExecutionResult result) {
+        UUID solutionId = result.solutionId();
+
+        SolutionEntity solution = solutionRepository.findById(solutionId)
+                .orElseThrow(() -> new SolutionNotFound(solutionId));
+
+        solution.setStatus(result.status());
+        solution.setTotalTests(result.totalTests());
+        solution.setPassedTests(result.passedTests());
+        solution.setTotalTimeMs(result.totalTimeMs());
+        solution.setTestResults(result.testResults());
+
+        solutionRepository.save(solution);
+        log.info("Solution {} updated with status: {}", result.solutionId(), result.status());
     }
 
     public Page<SolutionResponse> getAll(Pageable pageable) {
@@ -86,7 +107,8 @@ public class SolutionService {
     }
 
     public SolutionResponse getOne(UUID id) {
-        SolutionEntity solution = solutionRepository.findById(id).orElseThrow(() -> new SolutionNotFound(id));
+        SolutionEntity solution = solutionRepository.findById(id)
+                .orElseThrow(() -> new SolutionNotFound(id));
 
         return mapper.toSolutionResponse(solution);
     }

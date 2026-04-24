@@ -3,12 +3,15 @@ package com.technokratos.solutionservice.controller;
 
 import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.dto.SolutionResponse;
+import com.technokratos.solutionservice.dto.SolutionResultResponse;
+import com.technokratos.solutionservice.model.SolutionEntity;
 import com.technokratos.solutionservice.service.SolutionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -48,5 +51,11 @@ public class SolutionController {
     ) {
         return solutionService.solveTask(dto, taskId);
     }
+
+    @GetMapping("/{id}/result")
+    public SolutionResultResponse getResult(@PathVariable UUID id) {
+        return solutionService.getResult(id);
+    }
+
 }
 
