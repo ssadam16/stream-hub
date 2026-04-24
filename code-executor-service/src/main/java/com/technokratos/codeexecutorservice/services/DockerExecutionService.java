@@ -13,13 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -30,76 +24,73 @@ public class DockerExecutionService {
 
     public CodeExecutionResult executeCode(UUID solutionId, CodeExecutionRequest request) {
         log.info("Executing code for solution: {}, language: {}", solutionId, request.language());
-        log.info("Request to execute code, Code execution request: {}", request);
 
-        Path tempFile = null;
         String containerId = null;
 
         try {
             LanguageConfig config = getLanguageConfig(request.language());
-            tempFile = createTempFile(solutionId, request.code(), request.language());
+            String fileName = getFileName(request.language());
 
-            log.debug("Created temp file: {}", tempFile.toAbsolutePath());
-
-            containerId = dockerManager.createContainer(
-                    request.language(),
-                    tempFile.toString(),
-                    solutionId,
-                    config
-            );
-
-            log.info("Container created: {}, starting execution...", containerId);
+            containerId = dockerManager.createContainer(request.language(), config);
+            log.info("Container created: {}", containerId);
 
             dockerManager.startContainer(containerId);
+
+            dockerManager.copyFileToContainer(containerId, fileName, request.code(), "/workspace");
+            log.debug("Copied {} to container", fileName);
+
             long startTime = System.currentTimeMillis();
 
-            ExecResult compileResult = dockerManager.execCommand(
-                    containerId,
-                    "javac", "/workspace/Main.java"
-            );
+            // Компилируем (только для Java)
+            if (request.language() == ProgrammingLanguage.JAVA) {
+                ExecResult compileResult = dockerManager.execCommand(
+                        containerId,
+                        "javac", "/workspace/" + fileName
+                );
 
-            log.info("Compilation finished: exitCode={}, stdout='{}', stderr='{}'",
-                    compileResult.exitCode(),
-                    compileResult.stdout(),
-                    compileResult.stderr());
+                log.info("Compilation finished: exitCode={}, stderr='{}'",
+                        compileResult.exitCode(), compileResult.stderr());
 
-
-            if (compileResult.exitCode() != 0) {
-                dockerManager.removeContainer(containerId);
-                return CodeExecutionResult.builder()
-                        .solutionId(solutionId)
-                        .totalTests(request.testCases().size())
-                        .passedTests(0)
-                        .totalTimeMs(compileResult.elapsedMs())
-                        .status(SolutionStatus.COMPILATION_ERROR)
-                        .errorMessage(compileResult.stderr())
-                        .build();
+                if (compileResult.exitCode() != 0) {
+                    return CodeExecutionResult.builder()
+                            .solutionId(solutionId)
+                            .totalTests(request.testCases().size())
+                            .passedTests(0)
+                            .totalTimeMs(compileResult.elapsedMs())
+                            .status(SolutionStatus.COMPILATION_ERROR)
+                            .errorMessage(compileResult.stderr())
+                            .build();
+                }
             }
 
+            // Прогоняем тесты
             List<TestCaseResult> testResults = new ArrayList<>();
 
             for (TestCasePayload test : request.testCases()) {
-                log.info("Running test {}, input='{}', expectedOutput='{}', timeLimit={}",
-                        test.id(), test.input(), test.expectedOutput(), request.timeLimit());
+                log.debug("Running test {}, input='{}'", test.id(), test.input());
+
+                String[] runCommand = getRunCommand(request.language());
 
                 ExecResult runResult = dockerManager.execWithStdin(
                         containerId,
                         test.input() + "\n",
                         request.timeLimit(),
-                        "java", "-cp", "/workspace", "Main"
+                        runCommand
                 );
 
-                log.info("Test {} finished: timedOut={}, exitCode={}, stdout='{}', stderr='{}'",
-                        test.id(), runResult.timedOut(), runResult.exitCode(),
-                        runResult.stdout(), runResult.stderr());
+                log.debug("Test {} finished: timedOut={}, exitCode={}, stdout='{}'",
+                        test.id(), runResult.timedOut(), runResult.exitCode(), runResult.stdout());
 
                 if (runResult.timedOut()) {
                     testResults.add(new TestCaseResult(
-                            test.id(),
-                            false,
-                            "",
-                            runResult.elapsedMs(),
-                            ErrorType.TIMEOUT
+                            test.id(), false, "", runResult.elapsedMs(), ErrorType.TIMEOUT
+                    ));
+                    continue;
+                }
+
+                if (runResult.exitCode() != 0) {
+                    testResults.add(new TestCaseResult(
+                            test.id(), false, runResult.stderr(), runResult.elapsedMs(), ErrorType.RUNTIME_ERROR
                     ));
                     continue;
                 }
@@ -118,7 +109,6 @@ public class DockerExecutionService {
             }
 
             long totalTimeMs = System.currentTimeMillis() - startTime;
-            dockerManager.removeContainer(containerId);
 
             log.info("Execution completed for solution: {}", solutionId);
 
@@ -128,9 +118,8 @@ public class DockerExecutionService {
                     .status(calculateStatus(testResults))
                     .solutionId(solutionId)
                     .totalTimeMs(totalTimeMs)
-                    .passedTests(testResults.stream().filter(t -> t.errorType().equals(ErrorType.OK)).count())
+                    .passedTests(testResults.stream().filter(t -> t.errorType() == ErrorType.OK).count())
                     .build();
-
 
         } catch (Exception e) {
             log.error("Failed to execute code for solution: {}", solutionId, e);
@@ -139,17 +128,15 @@ public class DockerExecutionService {
                     .solutionId(solutionId)
                     .status(SolutionStatus.INTERNAL_ERROR)
                     .passedTests(0)
-                    .totalTests(request.testCases().size())
+                    .totalTests(request.testCases() != null ? request.testCases().size() : 0)
                     .testResults(new ArrayList<>())
-                    .errorMessage("Execution failed: %s".formatted(e.getMessage()))
+                    .errorMessage("Execution failed: " + e.getMessage())
                     .build();
-
 
         } finally {
             if (containerId != null) {
                 dockerManager.removeContainer(containerId);
             }
-            cleanTempFile(tempFile);
         }
     }
 
@@ -158,60 +145,34 @@ public class DockerExecutionService {
             return SolutionStatus.INTERNAL_ERROR;
         }
 
-        boolean hasTimeout = testResults.stream()
-                .anyMatch(r -> r.errorType() == ErrorType.TIMEOUT);
-        if (hasTimeout) {
+        if (testResults.stream().anyMatch(r -> r.errorType() == ErrorType.TIMEOUT)) {
             return SolutionStatus.TIME_LIMIT_EXCEEDED;
         }
 
-        // Проверяем есть ли хотя бы один RUNTIME_ERROR
-        boolean hasRuntimeError = testResults.stream()
-                .anyMatch(r -> r.errorType() == ErrorType.RUNTIME_ERROR);
-        if (hasRuntimeError) {
+        if (testResults.stream().anyMatch(r -> r.errorType() == ErrorType.RUNTIME_ERROR)) {
             return SolutionStatus.RUNTIME_ERROR;
         }
 
-        // Проверяем есть ли хотя бы один WRONG_ANSWER
-        boolean hasWrongAnswer = testResults.stream()
-                .anyMatch(r -> r.errorType() == ErrorType.WRONG_ANSWER);
-        if (hasWrongAnswer) {
+        if (testResults.stream().anyMatch(r -> r.errorType() == ErrorType.WRONG_ANSWER)) {
             return SolutionStatus.PARTIALLY_COMPLETED;
         }
 
-        // Если все прошли
-        boolean allPassed = testResults.stream()
-                .allMatch(TestCaseResult::passed);
-
+        boolean allPassed = testResults.stream().allMatch(TestCaseResult::passed);
         return allPassed ? SolutionStatus.COMPLETED : SolutionStatus.PARTIALLY_COMPLETED;
-
     }
 
-    private void cleanTempFile(Path tempFile) {
-        if (tempFile != null) {
-            try {
-                Path parentDir = tempFile.getParent();
+    private String getFileName(ProgrammingLanguage language) {
+        return switch (language) {
+            case JAVA -> "Main.java";
+            case PYTHON -> "solution.py";
+        };
+    }
 
-                if (parentDir != null && !parentDir.equals(Paths.get("/code-execution-temp"))) {
-                    try (Stream<Path> paths = Files.walk(parentDir)) {
-                        paths.sorted(Comparator.reverseOrder())
-                                .forEach(path -> {
-                                    try {
-                                        Files.deleteIfExists(path);
-                                        log.debug("Deleted: {}", path);
-                                    } catch (IOException e) {
-                                        log.warn("Failed to delete: {}", path, e);
-                                    }
-                                });
-                        log.debug("Cleaned up directory: {}", parentDir);
-                    }
-                } else {
-                    Files.deleteIfExists(tempFile);
-                    log.debug("File deleted: {}", tempFile);
-                }
-            } catch (IOException e) {
-                log.warn("Failed to clean temp file: {}", tempFile, e);
-            }
-        }
+    private String[] getRunCommand(ProgrammingLanguage language) {
+        return switch (language) {
+            case JAVA -> new String[]{"java", "-cp", "/workspace", "Main"};
+            case PYTHON -> new String[]{"python", "-u", "/workspace/solution.py"};
+        };
     }
 
     private LanguageConfig getLanguageConfig(ProgrammingLanguage language) {
@@ -221,7 +182,6 @@ public class DockerExecutionService {
                     .cpuCount(2L)
                     .timeout(30)
                     .workingDir("/workspace")
-                    .command(new String[]{"/bin/sh", "-c", "javac Main.java && java Main"})
                     .build();
 
             case PYTHON -> LanguageConfig.builder()
@@ -229,28 +189,7 @@ public class DockerExecutionService {
                     .cpuCount(1L)
                     .timeout(10)
                     .workingDir("/workspace")
-                    .command(new String[]{"python", "/workspace/solution.py"})
                     .build();
-
         };
     }
-
-    private Path createTempFile(UUID solutionId, String code, ProgrammingLanguage language) throws IOException {
-        String extension = switch (language) {
-            case JAVA -> ".java";
-            case PYTHON -> ".py";
-        };
-
-        String fileName = language.equals(ProgrammingLanguage.JAVA) ? "Main" : "solution";
-
-        Path solutionDir = Paths.get("/code-execution-temp", "solution-" + solutionId);
-        Files.createDirectories(solutionDir);
-        Path tempFile = solutionDir.resolve(fileName + extension);
-        Files.writeString(tempFile, code);
-
-        log.debug("Created file in volume: {}", tempFile);
-
-        return tempFile;
-    }
-
 }

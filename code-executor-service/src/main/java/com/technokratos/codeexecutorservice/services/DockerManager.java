@@ -11,17 +11,15 @@ import com.technokratos.common.dto.ExecResult;
 import com.technokratos.common.enums.ProgrammingLanguage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -55,16 +53,78 @@ public class DockerManager {
                     log.info("Image successfully pulled");
                 } else {
                     log.error("Failed to pull image within timeout");
+                    throw new RuntimeException("Failed to pull image");
                 }
             } else {
-                log.info("Image {} is already exists", imageName);
+                log.info("Image {} already exists", imageName);
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while pulling image", e);
         } catch (Exception e) {
             log.error("Cannot download image", e);
-            //todo: че нибудь сделать тут
+            throw new RuntimeException("Failed to ensure image exists", e);
         }
     }
 
+    public String createContainer(ProgrammingLanguage language, LanguageConfig config) {
+        String imageName = resolveImage(language);
+        ensureImageExists(imageName);
+
+        String containerWorkDir = config.getWorkingDir();
+
+        long memorySwap = config.getMemoryMB() * 1024L * 1024L;
+
+        HostConfig hostConfig = HostConfig.newHostConfig()
+                .withMemory(memorySwap)
+                .withCpuCount(config.getCpuCount())
+                .withPidsLimit(64L)
+                .withMemorySwap(memorySwap)
+                .withNetworkMode("none")
+                .withMemorySwap(0L);
+
+        CreateContainerResponse container = dockerClient.createContainerCmd(imageName)
+                .withHostConfig(hostConfig)
+                .withWorkingDir(containerWorkDir)
+                .withCmd("tail", "-f", "/dev/null")
+                .withAttachStdout(true)
+                .withAttachStderr(true)
+                .exec();
+
+        log.info("Created container {} for language {}", container.getId(), language);
+
+        return container.getId();
+    }
+
+    public void copyFileToContainer(String containerId, String fileName, String code, String remotePath) {
+        try {
+            byte[] fileBytes = code.getBytes(StandardCharsets.UTF_8);
+
+            ByteArrayOutputStream tarStream = new ByteArrayOutputStream();
+            try (TarArchiveOutputStream tar = new TarArchiveOutputStream(tarStream)) {
+                tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+
+                TarArchiveEntry entry = new TarArchiveEntry(fileName);
+                entry.setSize(fileBytes.length);
+                entry.setMode(420); // rw-r--r--
+
+                tar.putArchiveEntry(entry);
+                tar.write(fileBytes);
+                tar.closeArchiveEntry();
+            }
+
+            dockerClient.copyArchiveToContainerCmd(containerId)
+                    .withTarInputStream(new ByteArrayInputStream(tarStream.toByteArray()))
+                    .withRemotePath(remotePath)
+                    .exec();
+
+            log.debug("Copied file {} to container {} at {}", fileName, containerId, remotePath);
+
+        } catch (IOException e) {
+            log.error("Failed to copy file to container", e);
+            throw new RuntimeException("Failed to copy file to container", e);
+        }
+    }
 
     public ExecResult execCommand(String containerId, String... command) {
         try {
@@ -110,60 +170,15 @@ public class DockerManager {
                 log.debug("Exec stderr: {}", error);
             }
 
-            return new ExecResult(
-                    output,
-                    error,
-                    exitCode,
-                    elapsedMs,
-                    false
-            );
+            return new ExecResult(output, error, exitCode, elapsedMs, false);
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Exec interrupted", e);
         } catch (Exception e) {
-            log.error("Failed to exec command with stdin", e);
+            log.error("Failed to exec command", e);
             throw new RuntimeException("Exec failed", e);
         }
-    }
-
-    public String createContainer(ProgrammingLanguage language, String hostFilePath, UUID solutionId, LanguageConfig config) {
-        String imageName = resolveImage(language);
-        ensureImageExists(imageName);
-
-        Path hostPath = Paths.get(hostFilePath);
-        String hostDir = hostPath.getParent().toString();
-        log.debug("HostDir: {}", hostDir);
-        String containerWorkDir = config.getWorkingDir();
-
-        log.info("Mounting {} -> {}", hostDir, containerWorkDir);
-
-        Path bindPath = Paths.get(properties.getBindPath());
-
-        if (!Files.exists(bindPath) && !Files.isDirectory(bindPath)) {
-            try {
-                Files.createDirectory(bindPath);
-            } catch (IOException e) {
-                log.error("Failed to create directory: {}", bindPath.toAbsolutePath());
-                throw new RuntimeException("Failed to create bind host path");
-            }
-        }
-
-        HostConfig hostConfig = HostConfig.newHostConfig()
-                .withMemory(config.getMemoryMB() * 1024L * 1024L)
-                .withCpuCount(config.getCpuCount())
-                .withNetworkMode("none")
-                .withMemorySwap(0L)
-                .withBinds(new Bind("%s/solution-%s".formatted(properties.getBindPath(), solutionId), new Volume(containerWorkDir)));
-
-        CreateContainerResponse container = dockerClient.createContainerCmd(imageName)
-                .withHostConfig(hostConfig)
-                .withWorkingDir(containerWorkDir)
-                .withCmd("tail", "-f", "/dev/null")
-                .withAttachStdout(true)
-                .withAttachStderr(true)
-                .exec();
-
-        log.info("Created container {} for language {} with command: {}",
-                container.getId(), language, String.join(" ", config.getCommand()));
-
-        return container.getId();
     }
 
     public ExecResult execWithStdin(String containerId, String input, int timeoutSeconds, String... command) {
@@ -234,12 +249,10 @@ public class DockerManager {
     }
 
     private String resolveImage(ProgrammingLanguage language) {
-        if (language.equals(ProgrammingLanguage.JAVA)) {
-            return properties.getImages().getJava();
-        } else {
-            log.warn("Language {} is not supported", language);
-            throw new IllegalStateException("This language is not supported");
-        }
+        return switch (language) {
+            case JAVA -> properties.getImages().getJava();
+            case PYTHON -> properties.getImages().getPython();
+        };
     }
 
     public void startContainer(String containerId) {
@@ -247,7 +260,8 @@ public class DockerManager {
             dockerClient.startContainerCmd(containerId).exec();
             log.debug("Started container: {}", containerId);
         } catch (Exception e) {
-            log.error("Failer to start container {}: {}", containerId, e.getMessage());
+            log.error("Failed to start container {}: {}", containerId, e.getMessage());
+            throw new RuntimeException("Failed to start container", e);
         }
     }
 
@@ -261,5 +275,4 @@ public class DockerManager {
             log.warn("Failed to remove container {}: {}", containerId, e.getMessage());
         }
     }
-
 }
