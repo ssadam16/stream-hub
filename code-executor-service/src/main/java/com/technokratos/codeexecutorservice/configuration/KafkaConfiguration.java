@@ -15,6 +15,8 @@ import org.springframework.kafka.retrytopic.RetryTopicConfiguration;
 import org.springframework.kafka.retrytopic.RetryTopicConfigurationBuilder;
 import org.springframework.util.backoff.ExponentialBackOff;
 
+import java.util.List;
+
 @Configuration
 @EnableKafka
 public class KafkaConfiguration {
@@ -35,6 +37,7 @@ public class KafkaConfiguration {
                 .maxAttempts(4)
                 .exponentialBackoff(1000, 5, 30000)
                 .dltHandlerMethod("codeExecutionService", "handleDlqMessage")
+                .includeTopics(List.of("code-execution-topic"))
                 .dltSuffix("-dlq")
                 .retryTopicSuffix("-retry")
                 .create(template);

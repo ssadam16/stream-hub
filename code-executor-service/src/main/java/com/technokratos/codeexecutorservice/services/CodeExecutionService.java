@@ -51,6 +51,7 @@ public class CodeExecutionService {
         }
     }
 
+    @DltHandler
     public void handleDlqMessage(
             CodeExecutionRequest event,
             @Header(KafkaHeaders.DLT_EXCEPTION_STACKTRACE) String exceptionStackTrace,
