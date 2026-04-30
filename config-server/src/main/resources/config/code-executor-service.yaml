@@ -3,9 +3,11 @@ docker:
     max-connections: 100
     connection-timeout: 45
     response-timeout: 60
-  bind-path: ${BIND_PATH:/code-execution-temp}
   images:
     java: eclipse-temurin:21-jdk
+    python: python:3.12-slim
+    cpp: gcc:13-bookworm
+    go: golang:1.22-alpine
 
 spring:
   kafka:

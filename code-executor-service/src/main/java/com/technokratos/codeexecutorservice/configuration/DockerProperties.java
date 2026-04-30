@@ -15,8 +15,6 @@ public class DockerProperties {
 
     private Images images = new Images();
 
-    private String bindPath;
-
     @Getter
     @Setter
     public static class HttpClient {
@@ -31,5 +29,7 @@ public class DockerProperties {
         private String java;
         private String python;
         private String javascript;
+        private String cpp;
+        private String go;
     }
 }
