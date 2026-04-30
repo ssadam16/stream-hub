@@ -21,6 +21,7 @@ import java.util.*;
 public class DockerExecutionService {
 
     private final DockerManager dockerManager;
+    private final LanguageExecutorFactory factory;
 
     public CodeExecutionResult executeCode(UUID solutionId, CodeExecutionRequest request) {
         log.info("Executing code for solution: {}, language: {}", solutionId, request.language());
@@ -28,10 +29,11 @@ public class DockerExecutionService {
         String containerId = null;
 
         try {
-            LanguageConfig config = getLanguageConfig(request.language());
-            String fileName = getFileName(request.language());
+            LanguageExecutor executor = factory.get(request.language());
 
-            containerId = dockerManager.createContainer(request.language(), config);
+            String fileName = executor.getSourceFileName();
+
+            containerId = dockerManager.createContainer(executor);
             log.info("Container created: {}", containerId);
 
             dockerManager.startContainer(containerId);
@@ -41,11 +43,13 @@ public class DockerExecutionService {
 
             long startTime = System.currentTimeMillis();
 
-            // Компилируем (только для Java)
-            if (request.language() == ProgrammingLanguage.JAVA) {
+            String[] compileCommand = executor.getCompileCommand();
+
+            if (compileCommand != null) {
+
                 ExecResult compileResult = dockerManager.execCommand(
                         containerId,
-                        "javac", "/workspace/" + fileName
+                        compileCommand
                 );
 
                 log.info("Compilation finished: exitCode={}, stderr='{}'",
@@ -63,13 +67,13 @@ public class DockerExecutionService {
                 }
             }
 
-            // Прогоняем тесты
+
             List<TestCaseResult> testResults = new ArrayList<>();
 
             for (TestCasePayload test : request.testCases()) {
                 log.debug("Running test {}, input='{}'", test.id(), test.input());
 
-                String[] runCommand = getRunCommand(request.language());
+                String[] runCommand = executor.getRunCommand();
 
                 ExecResult runResult = dockerManager.execWithStdin(
                         containerId,
@@ -159,37 +163,5 @@ public class DockerExecutionService {
 
         boolean allPassed = testResults.stream().allMatch(TestCaseResult::passed);
         return allPassed ? SolutionStatus.COMPLETED : SolutionStatus.PARTIALLY_COMPLETED;
-    }
-
-    private String getFileName(ProgrammingLanguage language) {
-        return switch (language) {
-            case JAVA -> "Main.java";
-            case PYTHON -> "solution.py";
-        };
-    }
-
-    private String[] getRunCommand(ProgrammingLanguage language) {
-        return switch (language) {
-            case JAVA -> new String[]{"java", "-cp", "/workspace", "Main"};
-            case PYTHON -> new String[]{"python", "-u", "/workspace/solution.py"};
-        };
-    }
-
-    private LanguageConfig getLanguageConfig(ProgrammingLanguage language) {
-        return switch (language) {
-            case JAVA -> LanguageConfig.builder()
-                    .memoryMB(512L)
-                    .cpuCount(2L)
-                    .timeout(30)
-                    .workingDir("/workspace")
-                    .build();
-
-            case PYTHON -> LanguageConfig.builder()
-                    .memoryMB(256L)
-                    .cpuCount(1L)
-                    .timeout(10)
-                    .workingDir("/workspace")
-                    .build();
-        };
     }
 }
