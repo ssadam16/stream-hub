@@ -1,4 +1,4 @@
-package com.technokratos.codeexecutorservice.services;
+package com.technokratos.codeexecutorservice.executors;
 
 import com.technokratos.codeexecutorservice.configuration.LanguageConfig;
 import com.technokratos.common.enums.ProgrammingLanguage;
