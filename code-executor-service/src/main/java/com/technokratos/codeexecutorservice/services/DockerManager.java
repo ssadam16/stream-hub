@@ -5,10 +5,9 @@ import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.model.*;
-import com.technokratos.codeexecutorservice.configuration.DockerProperties;
 import com.technokratos.codeexecutorservice.configuration.LanguageConfig;
+import com.technokratos.codeexecutorservice.executors.LanguageExecutor;
 import com.technokratos.common.dto.ExecResult;
-import com.technokratos.common.enums.ProgrammingLanguage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
@@ -27,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class DockerManager {
 
-    private final DockerProperties properties;
     private final DockerClient dockerClient;
 
     private void ensureImageExists(String imageName) {
@@ -67,10 +65,10 @@ public class DockerManager {
         }
     }
 
-    public String createContainer(ProgrammingLanguage language, LanguageConfig config) {
-        String imageName = resolveImage(language);
-        ensureImageExists(imageName);
+    public String createContainer(LanguageExecutor executor) {
+        ensureImageExists(executor.getImage());
 
+        LanguageConfig config = executor.getConfig();
         String containerWorkDir = config.getWorkingDir();
 
         long memorySwap = config.getMemoryMB() * 1024L * 1024L;
@@ -80,10 +78,9 @@ public class DockerManager {
                 .withCpuCount(config.getCpuCount())
                 .withPidsLimit(64L)
                 .withMemorySwap(memorySwap)
-                .withNetworkMode("none")
-                .withMemorySwap(0L);
+                .withNetworkMode("none");
 
-        CreateContainerResponse container = dockerClient.createContainerCmd(imageName)
+        CreateContainerResponse container = dockerClient.createContainerCmd(executor.getImage())
                 .withHostConfig(hostConfig)
                 .withWorkingDir(containerWorkDir)
                 .withCmd("tail", "-f", "/dev/null")
@@ -91,7 +88,7 @@ public class DockerManager {
                 .withAttachStderr(true)
                 .exec();
 
-        log.info("Created container {} for language {}", container.getId(), language);
+        log.info("Created container {} for language {}", container.getId(), executor.getLanguage());
 
         return container.getId();
     }
@@ -246,13 +243,6 @@ public class DockerManager {
             log.error("Failed to exec command with stdin", e);
             throw new RuntimeException("Exec failed", e);
         }
-    }
-
-    private String resolveImage(ProgrammingLanguage language) {
-        return switch (language) {
-            case JAVA -> properties.getImages().getJava();
-            case PYTHON -> properties.getImages().getPython();
-        };
     }
 
     public void startContainer(String containerId) {
