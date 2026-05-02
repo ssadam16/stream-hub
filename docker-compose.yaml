@@ -108,7 +108,7 @@ services:
     ports:
       - "8085:8085"
     volumes:
-      - /d/docker-containers:/code-execution-temp
+      - ./docker-containers:/code-execution-temp
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
 #      code-executor-service-postgres:
@@ -117,7 +117,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      TASK_SERVICE_URI: http://task-service:8082/api
+      TASK_SERVICE_URI: http://task-service:8083/api
       BIND_PATH: ${BIND_PATH}
       #      SPRING_DATASOURCE_USERNAME: postgres
       #      SPRING_DATASOURCE_URL: jdbc:postgresql://code-executor-service-postgres:5432/code-executor-service-db
@@ -141,7 +141,7 @@ services:
     environment:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_DATASOURCE_USERNAME: postgres
-      TASK_SERVICE_URI: http://task-service:8082/api/tasks
+      TASK_SERVICE_URI: http://task-service:8083/api/tasks
       SPRING_DATASOURCE_URL: jdbc:postgresql://solution-service-postgres:5432/solution-service-db
       DB_PASSWORD: ${DB_PASSWORD}
       BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
@@ -174,7 +174,7 @@ services:
       context: .
       dockerfile: task-service-Dockerfile.dev
     ports:
-      - "8082:8082"
+      - "8083:8083"
     depends_on:
       task-service-postgres:
         condition: service_healthy
