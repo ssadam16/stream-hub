@@ -13,4 +13,5 @@ public class LanguageConfig {
     private Long cpuCount;
     private Integer timeout;
     private String workingDir;
+    private Long pidsLimit;
 }
