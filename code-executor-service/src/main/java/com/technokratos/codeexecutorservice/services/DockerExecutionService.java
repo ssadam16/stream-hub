@@ -1,5 +1,6 @@
 package com.technokratos.codeexecutorservice.services;
 
+import com.technokratos.codeexecutorservice.configuration.ExecutorProperties;
 import com.technokratos.codeexecutorservice.executors.LanguageExecutor;
 import com.technokratos.codeexecutorservice.executors.LanguageExecutorFactory;
 import com.technokratos.common.dto.ExecResult;
@@ -9,11 +10,13 @@ import com.technokratos.common.enums.ErrorType;
 import com.technokratos.common.enums.SolutionStatus;
 import com.technokratos.common.events.CodeExecutionRequest;
 import com.technokratos.common.events.CodeExecutionResult;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.Semaphore;
 
 @Service
 @Slf4j
@@ -22,9 +25,29 @@ public class DockerExecutionService {
 
     private final DockerManager dockerManager;
     private final LanguageExecutorFactory factory;
+    private final ExecutorProperties executorProperties;
+    private  Semaphore containerSemaphore;
+
+    @PostConstruct
+    public void init() {
+        containerSemaphore = new Semaphore(executorProperties.getMaxConcurrentContainers());
+        log.info("Semaphore has been initialized with max concurrent containers = {}", executorProperties.getMaxConcurrentContainers());
+    }
 
     public CodeExecutionResult executeCode(UUID solutionId, CodeExecutionRequest request) {
-        log.info("Executing code for solution: {}, language: {}", solutionId, request.language());
+        log.info("Waiting for container slot, solutionId={}", solutionId);
+
+        try {
+            containerSemaphore.acquire();  // ждём свободный слот
+            log.info("Got container slot, solutionId={}", solutionId);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return CodeExecutionResult.builder()
+                    .solutionId(solutionId)
+                    .errorMessage("Interrupted while waiting for container slot")
+                    .status(SolutionStatus.INTERNAL_ERROR)
+                    .build();
+        }
 
         String containerId = null;
 
@@ -141,6 +164,8 @@ public class DockerExecutionService {
             if (containerId != null) {
                 dockerManager.removeContainer(containerId);
             }
+            containerSemaphore.release();
+            log.info("Released container slot, solutionId={}", solutionId);
         }
     }
 
