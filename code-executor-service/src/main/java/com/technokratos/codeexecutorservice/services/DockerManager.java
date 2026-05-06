@@ -76,7 +76,7 @@ public class DockerManager {
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withMemory(memorySwap)
                 .withCpuCount(config.getCpuCount())
-                .withPidsLimit(64L)
+                .withPidsLimit(config.getPidsLimit() != null ? config.getPidsLimit() : 64L)
                 .withMemorySwap(memorySwap)
                 .withNetworkMode("none");
 
@@ -180,13 +180,21 @@ public class DockerManager {
 
     public ExecResult execWithStdin(String containerId, String input, int timeoutSeconds, String... command) {
         try {
+            // Экранируем input для shell
+            String escapedInput = input.replace("'", "'\\''");
+
+
+            String fullCommand = "echo '%s' | %s".formatted(escapedInput, String.join(" ", command));
+
+            String[] wrappedCommand = new String[]{"sh", "-c", fullCommand};
+
             ByteArrayOutputStream stdout = new ByteArrayOutputStream();
             ByteArrayOutputStream stderr = new ByteArrayOutputStream();
 
             var execCreateResp = dockerClient.execCreateCmd(containerId)
-                    .withCmd(command)
+                    .withCmd(wrappedCommand)
                     .withWorkingDir("/workspace")
-                    .withAttachStdin(true)
+                    .withAttachStdin(false)  // ← не нужен stdin через pipe
                     .withAttachStdout(true)
                     .withAttachStderr(true)
                     .exec();
@@ -194,51 +202,46 @@ public class DockerManager {
             String execId = execCreateResp.getId();
             long startTime = System.currentTimeMillis();
 
-            try (var stdinStream = new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8))) {
-
-                var callback = dockerClient.execStartCmd(execId)
-                        .withStdIn(stdinStream)
-                        .exec(new ResultCallbackTemplate<>() {
-                            @Override
-                            public void onNext(Frame frame) {
-                                try {
-                                    if (frame.getStreamType() == StreamType.STDOUT) {
-                                        stdout.write(frame.getPayload());
-                                    } else if (frame.getStreamType() == StreamType.STDERR) {
-                                        stderr.write(frame.getPayload());
-                                    }
-                                } catch (IOException e) {
-                                    log.error("Error reading exec output", e);
+            var callback = dockerClient.execStartCmd(execId)
+                    .exec(new ResultCallbackTemplate<>() {
+                        @Override
+                        public void onNext(Frame frame) {
+                            try {
+                                if (frame.getStreamType() == StreamType.STDOUT) {
+                                    stdout.write(frame.getPayload());
+                                } else if (frame.getStreamType() == StreamType.STDERR) {
+                                    stderr.write(frame.getPayload());
                                 }
+                            } catch (IOException e) {
+                                log.error("Error reading exec output", e);
                             }
-                        });
+                        }
+                    });
 
-                boolean finished = callback.awaitCompletion(timeoutSeconds, TimeUnit.SECONDS);
-                long elapsedMs = System.currentTimeMillis() - startTime;
+            boolean finished = callback.awaitCompletion(timeoutSeconds, TimeUnit.SECONDS);
+            long elapsedMs = System.currentTimeMillis() - startTime;
 
-                if (!finished) {
-                    log.warn("Exec command timed out after {} seconds", timeoutSeconds);
-                    return new ExecResult("", "Timeout", -1, elapsedMs, true);
-                }
-
-                var inspectExec = dockerClient.inspectExecCmd(execId).exec();
-                int exitCode = inspectExec.getExitCodeLong() != null
-                        ? inspectExec.getExitCodeLong().intValue()
-                        : 0;
-
-                return new ExecResult(
-                        stdout.toString(StandardCharsets.UTF_8),
-                        stderr.toString(StandardCharsets.UTF_8),
-                        exitCode,
-                        elapsedMs,
-                        false
-                );
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Exec interrupted", e);
+            if (!finished) {
+                log.warn("Exec command timed out after {} seconds", timeoutSeconds);
+                return new ExecResult("", "Timeout", -1, elapsedMs, true);
             }
 
+            var inspectExec = dockerClient.inspectExecCmd(execId).exec();
+            int exitCode = inspectExec.getExitCodeLong() != null
+                    ? inspectExec.getExitCodeLong().intValue()
+                    : 0;
+
+            return new ExecResult(
+                    stdout.toString(StandardCharsets.UTF_8),
+                    stderr.toString(StandardCharsets.UTF_8),
+                    exitCode,
+                    elapsedMs,
+                    false
+            );
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Exec interrupted", e);
         } catch (Exception e) {
             log.error("Failed to exec command with stdin", e);
             throw new RuntimeException("Exec failed", e);
