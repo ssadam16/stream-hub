@@ -1,6 +1,6 @@
 FROM eclipse-temurin:21-jre-alpine
 
-EXPOSE 8082
+EXPOSE 8083
 
 WORKDIR /app
 

@@ -134,7 +134,7 @@ services:
     environment:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_DATASOURCE_USERNAME: postgres
-      TASK_SERVICE_URI: http://task-service:8082/api/tasks
+      TASK_SERVICE_URI: http://task-service:8083/api/tasks
       SPRING_DATASOURCE_URL: jdbc:postgresql://solution-service-postgres:5432/solution-service-db
       DB_PASSWORD: ${DB_PASSWORD}
       BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
@@ -167,7 +167,7 @@ services:
       context: .
       dockerfile: task-service-Dockerfile.dev
     ports:
-      - "8082:8082"
+      - "8083:8083"
     depends_on:
       task-service-postgres:
         condition: service_healthy
