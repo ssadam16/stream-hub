@@ -5,3 +5,6 @@ databaseChangeLog:
   - include:
       file: 002-add-execution-results-columns.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 003-delete-language-constraint.yaml
+      relativeToChangelogFile: true

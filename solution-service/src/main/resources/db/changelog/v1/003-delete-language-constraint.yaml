@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-disable-language-constraint
+      author: nongrataqqq
+      changes:
+        - sql:
+            sql: ALTER TABLE solutions DROP CONSTRAINT solutions_language_check;
