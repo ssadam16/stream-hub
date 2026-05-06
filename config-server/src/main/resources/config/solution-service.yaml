@@ -30,5 +30,8 @@ spring:
         spring.json.add.type.headers: true
       retries: 3
       acks: all
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_ROOT_USERNAME:nongrataqqq}:${MONGO_ROOT_PASSWORD:235094}@localhost:27017/mongo-db?authSource=admin
 
 task-service-uri: ${TASK_SERVICE_URI:http://localhost:8083/api/tasks}

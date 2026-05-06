@@ -51,7 +51,4 @@ public class SolutionEntity extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "test_results", columnDefinition = "jsonb")
     private List<TestCaseResult> testResults;
-
-    @Column(name = "code", nullable = false, length = Integer.MAX_VALUE)
-    private String code;
 }

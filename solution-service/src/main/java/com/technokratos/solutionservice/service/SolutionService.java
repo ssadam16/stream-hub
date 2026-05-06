@@ -1,7 +1,5 @@
 package com.technokratos.solutionservice.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.technokratos.common.dto.TaskResponse;
 import com.technokratos.common.enums.SolutionStatus;
 import com.technokratos.common.events.CodeExecutionRequest;
@@ -13,7 +11,10 @@ import com.technokratos.solutionservice.dto.SolutionResultResponse;
 import com.technokratos.solutionservice.handler.exceptions.SolutionNotFound;
 import com.technokratos.solutionservice.mapper.SolutionMapper;
 import com.technokratos.solutionservice.model.SolutionEntity;
+import com.technokratos.solutionservice.model.SolutionSource;
+import com.technokratos.solutionservice.repository.MongoSolutionRepository;
 import com.technokratos.solutionservice.repository.SolutionRepository;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,9 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 @Slf4j
@@ -38,31 +42,60 @@ public class SolutionService {
 
     private final static String EXECUTION_CODE_KAFKA_TOPIC = "code-execution-topic";
     private final TaskClient taskClient;
+    private final MongoSolutionRepository mongoSolutionRepository;
 
     @Transactional
     public UUID solveTask(SolutionRequest dto, UUID taskId) {
         UUID userId = UUID.randomUUID();
         SolutionEntity solution = mapper.toEntity(dto);
-        solution.setUserId(userId);//добавить userId
+        solution.setUserId(userId); //добавить userId
         solution.setStatus(SolutionStatus.PENDING);
         solution.setTaskId(taskId);
 
-        SolutionEntity savedSolution = solutionRepository.save(solution);
+        SolutionEntity saved = solutionRepository.save(solution);
+        SolutionSource solutionToMongo = SolutionSource.builder()
+                .code(dto.code())
+                .solutionId(saved.getId())
+                .taskId(taskId)
+                .language(dto.language())
+                .normalizedCode(normalize(dto.code()))
+                .codeHash(sha256(dto.code()))
+                .build();
 
-        log.debug("Solution saved entity: taskId={}, solutionId={}",
-                savedSolution.getTaskId(),
-                savedSolution.getId()
-        );
+        mongoSolutionRepository.save(solutionToMongo);
 
-        UUID solutionId = savedSolution.getId();
+        log.debug("Solution saved: taskId={}, solutionId={}", saved.getTaskId(), saved.getId());
+
+        UUID solutionId = saved.getId();
 
         TaskResponse task = taskClient.getTask(taskId);
-
-        CodeExecutionRequest codeExecutionRequest = getCodeExecutionRequest(dto,userId , taskId, savedSolution, solutionId, task);
-
-        kafkaTemplate.send(EXECUTION_CODE_KAFKA_TOPIC, solutionId, codeExecutionRequest);
+        CodeExecutionRequest request = getCodeExecutionRequest(dto, userId , taskId, solutionId, task);
+        kafkaTemplate.send(EXECUTION_CODE_KAFKA_TOPIC, saved.getId(), request);
 
         return solutionId;
+    }
+
+    private String sha256(String code) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(code.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String normalize(String code) {
+        return code
+                .replaceAll("//[^\n]*", "")           // убрать // комменты
+                .replaceAll("/\\*.*?\\*/", "")         // убрать /* */ комменты
+                .replaceAll("#[^\n]*", "")             // убрать # комменты (Python/C++)
+                .replaceAll("\\s+", " ")               // нормализовать пробелы
+                .trim();
     }
 
     public SolutionResultResponse getResult(UUID solutionId) {
@@ -72,9 +105,8 @@ public class SolutionService {
         return mapper.toResponse(solution);
     }
 
-    private CodeExecutionRequest getCodeExecutionRequest(SolutionRequest dto, UUID userId, UUID taskId, SolutionEntity savedSolution, UUID solutionId, TaskResponse task) {
+    private CodeExecutionRequest getCodeExecutionRequest(SolutionRequest dto, UUID userId, UUID taskId, UUID solutionId, TaskResponse task) {
         return CodeExecutionRequest.builder()
-                .code(savedSolution.getCode())
                 .taskId(taskId)
                 .solutionId(solutionId)
                 .language(dto.language())
