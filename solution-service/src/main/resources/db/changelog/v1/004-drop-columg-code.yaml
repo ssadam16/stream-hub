@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: drop-code-column
+      author: nongrataqqq
+      changes:
+        - dropColumn:
+            tableName: solutions
+            columnName: code
