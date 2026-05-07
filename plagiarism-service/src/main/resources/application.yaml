@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: plagiarism-service
+
+  kafka:
+    bootstrap-servers: ${BOOTSTRAP_SERVERS:localhost:9092,localhost:9094,localhost:9096}
+    consumer:
+      group-id: plagiarism-service-group
+      properties:
+        spring.json.trusted.packages: "com.technokratos.common.events"
+      key-deserializer: org.apache.kafka.common.serialization.UUIDDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.UUIDSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: true
+      retries: 3
+      acks: all
+    listener:
+      missing-topics-fatal: false
+    #      max-attempts: 4
+    #      backoff:
+    #        exponential:
+    #          initial: 1000
+    #          multiplier: 5
+    #          max: 30000
+
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_ROOT_USERNAME:nongrataqqq}:${MONGO_ROOT_PASSWORD:235094}@localhost:27017/mongo-db?authSource=admin
+
+server:
+  port: 8086
+
