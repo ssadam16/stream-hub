@@ -124,7 +124,7 @@ public class DockerExecutionService {
 
                 String actual = runResult.stdout().trim();
                 String expected = test.expectedOutput().trim();
-                boolean passed = actual.equals(expected);
+                boolean passed = OutputComparator.compare(actual, expected);
 
                 testResults.add(new TestCaseResult(
                         test.id(),
