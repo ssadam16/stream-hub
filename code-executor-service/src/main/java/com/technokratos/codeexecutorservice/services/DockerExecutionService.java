@@ -1,5 +1,6 @@
 package com.technokratos.codeexecutorservice.services;
 
+import com.technokratos.codeexecutorservice.comparator.OutputComparator;
 import com.technokratos.codeexecutorservice.executors.LanguageExecutor;
 import com.technokratos.codeexecutorservice.executors.LanguageExecutorFactory;
 import com.technokratos.common.dto.ExecResult;
@@ -101,7 +102,7 @@ public class DockerExecutionService {
 
                 String actual = runResult.stdout().trim();
                 String expected = test.expectedOutput().trim();
-                boolean passed = actual.equals(expected);
+                boolean passed = OutputComparator.compare(actual, expected);
 
                 testResults.add(new TestCaseResult(
                         test.id(),
