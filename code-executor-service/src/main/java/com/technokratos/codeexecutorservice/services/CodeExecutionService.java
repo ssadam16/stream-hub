@@ -15,6 +15,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.UUID;
 
 @Service
@@ -51,24 +52,24 @@ public class CodeExecutionService {
         }
     }
 
-    @DltHandler
+    @KafkaListener(topics = "code-execution-topic-dlq", groupId = "${spring.kafka.consumer.group-id}-dlq")
     public void handleDlqMessage(
             CodeExecutionRequest event,
-            @Header(KafkaHeaders.DLT_EXCEPTION_STACKTRACE) String exceptionStackTrace,
-            @Header(KafkaHeaders.DLT_ORIGINAL_TOPIC) String originalTopic) {
+            @Header(value = "kafka_dlt-exception-stacktrace", required = false) String stacktrace,
+            @Header(value = "kafka_dlt-exception-message", required = false) String errorMessage
+    ) {
+        log.error("DLQ message received: solutionId={}, error={}",
+                event.solutionId(), errorMessage);
 
-        log.error("Solution moved to DLQ after all retries: solutionId={}, taskId={}, originalTopic={}", event.solutionId(), event.taskId(), originalTopic);
-        log.error("Exception: {}", exceptionStackTrace);
-
-        CodeExecutionResult errorResult = CodeExecutionResult.builder()
-                .solutionId(event.solutionId())
-                .totalTests(event.testCases().size())
-                .passedTests(0)
-                .status(SolutionStatus.INTERNAL_ERROR)
-                .errorMessage("All retry attempts exhausted. Check DLQ for details")
-                .build();
-
-        kafkaTemplate.send("code-execution-results", event.solutionId(), errorResult);
-        log.info("Sent INTERNAL_ERROR to results topic for solution: {}", event.solutionId());
+        // Отправить INTERNAL_ERROR результат чтобы юзер не ждал вечно
+        kafkaTemplate.send("code-execution-results", event.solutionId(),
+                CodeExecutionResult.builder()
+                        .solutionId(event.solutionId())
+                        .status(SolutionStatus.INTERNAL_ERROR)
+                        .passedTests(0)
+                        .totalTests(event.testCases() != null ? event.testCases().size() : 0)
+                        .testResults(new ArrayList<>())
+                        .errorMessage("Execution failed after retries")
+                        .build());
     }
 }

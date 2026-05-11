@@ -1,6 +1,4 @@
-package com.technokratos.solutionservice.handler.exceptions;
-
-import com.technokratos.common.exceptions.NotFoundException;
+package com.technokratos.common.exceptions;
 
 import java.util.UUID;
 
