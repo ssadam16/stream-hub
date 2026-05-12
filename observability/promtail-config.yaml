@@ -1,0 +1,35 @@
+server:
+  http_listen_port: 9080
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Имя контейнера как label
+      - source_labels: [__meta_docker_container_name]
+        regex: /(.*)
+        target_label: container
+      # Имя образа как label
+      - source_labels: [__meta_docker_container_image]
+        target_label: image
+    pipeline_stages:
+      # Парсим JSON логи
+      - json:
+          expressions:
+            level: level
+            message: message
+            service: service
+            traceId: traceId
+            userId: userId
+      # Выставляем level как label для фильтрации в Grafana
+      - labels:
+          level:
+          service:

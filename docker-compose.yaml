@@ -367,6 +367,44 @@ services:
     networks:
       - streamhub-network
 
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - streamhub-network
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: promtail
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # читает Docker логи
+      - ./observability/promtail-config.yaml:/etc/promtail/config.yaml
+    command: -config.file=/etc/promtail/config.yaml
+    depends_on:
+      - loki
+    networks:
+      - streamhub-network
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - loki
+      # - prometheus
+    networks:
+      - streamhub-network
+
 volumes:
   user-service-postgres-data:
   task-service-postgres-data:
@@ -376,6 +414,7 @@ volumes:
   kafka_data3:
   keycloak_postgres_data:
   mongo_data:
+  grafana-data:
 
 networks:
   streamhub-network:
