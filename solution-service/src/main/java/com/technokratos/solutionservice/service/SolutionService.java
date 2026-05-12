@@ -4,17 +4,17 @@ import com.technokratos.common.dto.TaskResponse;
 import com.technokratos.common.enums.SolutionStatus;
 import com.technokratos.common.events.CodeExecutionRequest;
 import com.technokratos.common.events.CodeExecutionResult;
+import com.technokratos.common.events.SolutionCompletedEvent;
 import com.technokratos.solutionservice.client.TaskClient;
 import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.dto.SolutionResponse;
 import com.technokratos.solutionservice.dto.SolutionResultResponse;
-import com.technokratos.solutionservice.handler.exceptions.SolutionNotFound;
+import com.technokratos.common.exceptions.SolutionNotFound;
 import com.technokratos.solutionservice.mapper.SolutionMapper;
 import com.technokratos.solutionservice.model.SolutionEntity;
 import com.technokratos.solutionservice.model.SolutionSource;
 import com.technokratos.solutionservice.repository.MongoSolutionRepository;
 import com.technokratos.solutionservice.repository.SolutionRepository;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -35,20 +35,19 @@ import java.util.UUID;
 public class SolutionService {
 
     private final SolutionMapper mapper;
-
     private final SolutionRepository solutionRepository;
-
     private final KafkaTemplate<UUID, CodeExecutionRequest> kafkaTemplate;
-
+    private final KafkaTemplate<UUID, SolutionCompletedEvent> kafkaPlagiarismTemplate;
     private final static String EXECUTION_CODE_KAFKA_TOPIC = "code-execution-topic";
+    private final static String PLAGIARISM_KAFKA_TOPIC = "solution-completed-events";
     private final TaskClient taskClient;
     private final MongoSolutionRepository mongoSolutionRepository;
 
     @Transactional
-    public UUID solveTask(SolutionRequest dto, UUID taskId) {
-        UUID userId = UUID.randomUUID();
+    public UUID solveTask(SolutionRequest dto, UUID taskId, UUID userId) {
+        log.info("User {} has been solved task {}", userId, taskId);
         SolutionEntity solution = mapper.toEntity(dto);
-        solution.setUserId(userId); //добавить userId
+        solution.setUserId(userId);
         solution.setStatus(SolutionStatus.PENDING);
         solution.setTaskId(taskId);
 
@@ -69,8 +68,10 @@ public class SolutionService {
         UUID solutionId = saved.getId();
 
         TaskResponse task = taskClient.getTask(taskId);
+        log.info("Task from task-service: {}", task.id());
         CodeExecutionRequest request = getCodeExecutionRequest(dto, userId , taskId, solutionId, task);
         kafkaTemplate.send(EXECUTION_CODE_KAFKA_TOPIC, saved.getId(), request);
+        log.info("Send code-execution event to {} topic", EXECUTION_CODE_KAFKA_TOPIC);
 
         return solutionId;
     }
@@ -110,6 +111,7 @@ public class SolutionService {
                 .taskId(taskId)
                 .solutionId(solutionId)
                 .language(dto.language())
+                .code(dto.code())
                 .userId(userId)
                 .memoryLimit(task.memoryLimit())
                 .testCases(task.testCases())
@@ -132,6 +134,19 @@ public class SolutionService {
 
         solutionRepository.save(solution);
         log.info("Solution {} updated with status: {}", result.solutionId(), result.status());
+
+        if (result.status() == SolutionStatus.COMPLETED) {
+            kafkaPlagiarismTemplate.send(
+                    PLAGIARISM_KAFKA_TOPIC,
+                    result.solutionId(),
+                    SolutionCompletedEvent.builder()
+                            .solutionId(result.solutionId())
+                            .taskId(solution.getTaskId())
+                            .language(solution.getLanguage())
+                            .build()
+            );
+            log.info("Sent solution {} to plagiarism check", result.solutionId());
+        }
     }
 
     public Page<SolutionResponse> getAll(Pageable pageable) {

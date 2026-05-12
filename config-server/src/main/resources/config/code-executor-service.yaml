@@ -27,6 +27,7 @@ spring:
       acks: all
     listener:
       missing-topics-fatal: false
+      concurrency: 4
 #      max-attempts: 4
 #      backoff:
 #        exponential:
@@ -38,6 +39,12 @@ logging:
   level:
     com.technokratos.codeexecutorservice: DEBUG
     org.springframework.kafka: DEBUG
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: INFO
+
+executor:
+  max-concurrent-containers: 4
+
+
 
 services:
   task-service:

@@ -1,5 +1,6 @@
 package com.technokratos.common.dto.tests;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 import java.util.UUID;
@@ -9,5 +10,5 @@ public record TestCasePayload(
         UUID id,
         String input,
         String expectedOutput,
-        boolean isExample
+        @JsonProperty("isHidden") boolean isHidden
 ) {}
