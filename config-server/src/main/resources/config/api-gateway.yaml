@@ -11,17 +11,11 @@ spring:
               uri: ${USER_SERVICE_URI:http://localhost:8081}
               predicates:
                 - Path=/api/users/**
-              filters:
-                - AddRequestHeader=X-Request-Example, Gateway-Request
-                - AddResponseHeader=X-Response-Example, Gateway-Response
 
             - id: solution-service
               uri: ${SOLUTION_SERVICE_URI:http://localhost:8084}
               predicates:
                 - Path=/api/solutions/**
-              filters:
-                - AddRequestHeader=X-Request-Example, Gateway-Request
-                - AddResponseHeader=X-Response-Example, Gateway-Response
 
   security:
     oauth2:

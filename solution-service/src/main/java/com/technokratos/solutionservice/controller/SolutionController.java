@@ -47,9 +47,10 @@ public class SolutionController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public UUID solveTask(
             @RequestBody @Valid SolutionRequest dto,
-            @PathVariable UUID taskId
+            @PathVariable UUID taskId,
+            @RequestHeader("X-User-Id") UUID userId
     ) {
-        return solutionService.solveTask(dto, taskId);
+        return solutionService.solveTask(dto, taskId, userId);
     }
 
     @GetMapping("/{id}/result")
