@@ -34,4 +34,8 @@ spring:
     mongodb:
       uri: mongodb://${MONGO_ROOT_USERNAME:nongrataqqq}:${MONGO_ROOT_PASSWORD:235094}@localhost:27017/mongo-db?authSource=admin
 
+logging:
+  level:
+    com.technokratos.solutionservice: DEBUG
+
 task-service-uri: ${TASK_SERVICE_URI:http://localhost:8083/api/tasks}

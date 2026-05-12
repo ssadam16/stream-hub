@@ -179,7 +179,7 @@ public class PlagiarismService {
     private String getExtension(ProgrammingLanguage language) {
         return switch (language) {
             case JAVA ->  ".java";
-            case PYTHON -> "py";
+            case PYTHON -> ".py";
             case CPP -> ".cpp";
             case GO -> ".go";
         };
