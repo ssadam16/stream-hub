@@ -44,10 +44,10 @@ public class SolutionService {
     private final MongoSolutionRepository mongoSolutionRepository;
 
     @Transactional
-    public UUID solveTask(SolutionRequest dto, UUID taskId) {
-        UUID userId = UUID.randomUUID();
+    public UUID solveTask(SolutionRequest dto, UUID taskId, UUID userId) {
+        log.info("User {} has been solved task {}", userId, taskId);
         SolutionEntity solution = mapper.toEntity(dto);
-        solution.setUserId(userId); //добавить userId
+        solution.setUserId(userId);
         solution.setStatus(SolutionStatus.PENDING);
         solution.setTaskId(taskId);
 
@@ -68,8 +68,10 @@ public class SolutionService {
         UUID solutionId = saved.getId();
 
         TaskResponse task = taskClient.getTask(taskId);
+        log.info("Task from task-service: {}", task.id());
         CodeExecutionRequest request = getCodeExecutionRequest(dto, userId , taskId, solutionId, task);
         kafkaTemplate.send(EXECUTION_CODE_KAFKA_TOPIC, saved.getId(), request);
+        log.info("Send code-execution event to {} topic", EXECUTION_CODE_KAFKA_TOPIC);
 
         return solutionId;
     }

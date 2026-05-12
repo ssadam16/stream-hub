@@ -1,5 +1,6 @@
 package com.technokratos.codeexecutorservice.services;
 
+import com.technokratos.codeexecutorservice.comparator.OutputComparator;
 import com.technokratos.codeexecutorservice.configuration.ExecutorProperties;
 import com.technokratos.codeexecutorservice.executors.LanguageExecutor;
 import com.technokratos.codeexecutorservice.executors.LanguageExecutorFactory;

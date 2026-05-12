@@ -114,7 +114,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      TASK_SERVICE_URI: http://task-service:8082/api
+      TASK_SERVICE_URI: http://task-service:8083/api/tasks
       BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
     networks:
       - streamhub-network
@@ -138,6 +138,25 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://solution-service-postgres:5432/solution-service-db
       DB_PASSWORD: ${DB_PASSWORD}
       BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
+    networks:
+      - streamhub-network
+
+  plagiarism-service:
+    container_name: plagiarism-service
+    build:
+      context: .
+      dockerfile: plagiarism-service-Dockerfile.dev
+    ports:
+      - "8086:8086"
+    depends_on:
+      config-server:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+    environment:
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:-root123}@mongodb:27017/mongo-db?authSource=admin
     networks:
       - streamhub-network
 
@@ -355,7 +374,7 @@ services:
     container_name: mongo-express
     restart: unless-stopped
     ports:
-      - "8081:8081"
+      - "8091:8091"
     environment:
       ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME:-root}
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD:-root123}
