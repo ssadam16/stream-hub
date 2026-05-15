@@ -1,5 +1,6 @@
 package com.technokratos.common.dto;
 
+import com.technokratos.common.enums.ProgrammingLanguage;
 import com.technokratos.common.enums.TaskDifficulty;
 import com.technokratos.common.enums.TaskTestType;
 import com.technokratos.common.dto.tests.TestCasePayload;
@@ -16,5 +17,7 @@ public record TaskResponse(
         TaskTestType type,
         Integer timeLimit,
         Integer memoryLimit,
-        List<TestCasePayload> testCases
+        List<TestCasePayload> testCases,
+        Short rating,
+        ProgrammingLanguage language
 ) {}

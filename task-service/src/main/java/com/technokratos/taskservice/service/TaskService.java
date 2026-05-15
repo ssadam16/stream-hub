@@ -8,8 +8,15 @@ import com.technokratos.taskservice.model.Task;
 import com.technokratos.taskservice.exception.TaskNotFoundException;
 import com.technokratos.taskservice.mapper.TaskMapper;
 import com.technokratos.taskservice.repository.TaskRepository;
+import com.technokratos.taskservice.request.TaskFilterRequest;
+import com.technokratos.taskservice.specification.TaskSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,5 +62,40 @@ public class TaskService {
         log.info("Get all tasks");
 
         return taskMapper.toTaskResponseList(taskRepository.findAll());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TaskResponse> getTasksByFilters(TaskFilterRequest filterRequest) {
+        log.info("Get tasks with filters: {}", filterRequest);
+
+        Sort.Direction direction = Sort.Direction.fromString(
+                filterRequest.getSortType() != null ? filterRequest.getSortType().toUpperCase() : "DESC"
+        );
+
+        String sortField = filterRequest.getSortBy();
+        if ("date".equalsIgnoreCase(sortField)) {
+            sortField = "createdAt";
+        }
+
+        Sort sort = Sort.by(direction, sortField);
+        Pageable pageable = PageRequest.of(
+                filterRequest.getPage() != null ? filterRequest.getPage() : 0,
+                filterRequest.getSize() != null ? filterRequest.getSize() : 20,
+                sort
+        );
+
+        Specification<Task> specification = TaskSpecification.filterBy(
+                filterRequest.getDifficulties(),
+                filterRequest.getLanguages(),
+                filterRequest.getAuthorId(),
+                filterRequest.getTypes(),
+                filterRequest.getMinRating(),
+                filterRequest.getMaxRating(),
+                filterRequest.getSearchText()
+        );
+
+        Page<Task> taskPage = taskRepository.findAll(specification, pageable);
+
+        return taskPage.map(taskMapper::toTaskResponse);
     }
 }

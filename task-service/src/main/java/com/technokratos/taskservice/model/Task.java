@@ -1,11 +1,13 @@
 package com.technokratos.taskservice.model;
 
+import com.technokratos.common.enums.ProgrammingLanguage;
 import com.technokratos.common.enums.TaskDifficulty;
 import com.technokratos.common.enums.TaskTestType;
 import com.technokratos.taskservice.model.tests.ConsoleTestCase;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,4 +49,13 @@ public class Task extends BaseEntity {
     private Integer timeLimit;
 
     private Integer memoryLimit;
+
+    @Column(nullable = false)
+    @ColumnDefault("NONE")
+    @Enumerated(EnumType.STRING)
+    private ProgrammingLanguage language;
+
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private Short rating;
 }
