@@ -30,6 +30,24 @@ spring:
     mongodb:
       uri: mongodb://${MONGO_ROOT_USERNAME:nongrataqqq}:${MONGO_ROOT_PASSWORD:235094}@localhost:27017/mongo-db?authSource=admin
 
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+
+otel:
+  exporter:
+    otlp:
+      endpoint: http://otel-collector:4318
+  resource:
+    attributes:
+      service.name: ${spring.application.name}
+
+
 server:
   port: 8086
 

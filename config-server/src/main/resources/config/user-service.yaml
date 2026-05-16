@@ -16,3 +16,21 @@ spring:
 logging:
   level:
     org.springframework.userservice: DEBUG
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+
+otel:
+  exporter:
+    otlp:
+      endpoint: http://otel-collector:4318
+  resource:
+    attributes:
+      service.name: ${spring.application.name}
