@@ -10,12 +10,12 @@ COPY common/build.gradle ./common/
 COPY code-executor-service/build.gradle ./code-executor-service/
 
 # Скачиваем зависимости
-RUN ./gradlew dependencies
+RUN ./gradlew dependencies --no-daemon
 
 COPY code-executor-service/ ./code-executor-service/
 COPY common/ ./common/
 
-RUN ./gradlew :code-executor-service:bootJar -x test
+RUN ./gradlew :code-executor-service:bootJar --no-daemon -x test
 
 # Финальная стадия
 FROM eclipse-temurin:21-jre-alpine

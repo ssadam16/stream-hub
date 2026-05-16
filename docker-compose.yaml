@@ -62,26 +62,26 @@ services:
     networks:
       - streamhub-network
 
-#  code-executor-service-postgres:
-#    container_name: code-executor-service-postgres
-#    image: postgres:latest
-#    restart: on-failure
-#    ports:
-#      - "5435:5432"
-#    volumes:
-#      - code-executor-service-postgres-data:/var/lib/postgresql
-#    environment:
-#      POSTGRES_USER: postgres
-#      POSTGRES_PASSWORD: ${DB_PASSWORD}
-#      POSTGRES_DB: code-executor-service-db
-#    healthcheck:
-#      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
-#      interval: 10s
-#      timeout: 5s
-#      start_period: 10s
-#      retries: 5
-#    networks:
-#      - streamhub-network
+  #  code-executor-service-postgres:
+  #    container_name: code-executor-service-postgres
+  #    image: postgres:latest
+  #    restart: on-failure
+  #    ports:
+  #      - "5435:5432"
+  #    volumes:
+  #      - code-executor-service-postgres-data:/var/lib/postgresql
+  #    environment:
+  #      POSTGRES_USER: postgres
+  #      POSTGRES_PASSWORD: ${DB_PASSWORD}
+  #      POSTGRES_DB: code-executor-service-db
+  #    healthcheck:
+  #      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+  #      interval: 10s
+  #      timeout: 5s
+  #      start_period: 10s
+  #      retries: 5
+  #    networks:
+  #      - streamhub-network
 
   config-server:
     container_name: config-server
@@ -112,6 +112,12 @@ services:
     depends_on:
       config-server:
         condition: service_healthy
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
     environment:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       TASK_SERVICE_URI: http://task-service:8083/api/tasks
@@ -131,12 +137,23 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
+      mongodb:
+          condition: service_started
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
     environment:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_DATASOURCE_USERNAME: postgres
       TASK_SERVICE_URI: http://task-service:8083/api/tasks
       SPRING_DATASOURCE_URL: jdbc:postgresql://solution-service-postgres:5432/solution-service-db
       DB_PASSWORD: ${DB_PASSWORD}
+      MONGO_HOST: mongodb
+      MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
       BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
     networks:
       - streamhub-network
@@ -153,6 +170,12 @@ services:
         condition: service_healthy
       mongodb:
         condition: service_started
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
     environment:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
@@ -212,14 +235,18 @@ services:
         condition: service_healthy
       user-service:
         condition: service_started
+      keycloak:
+        condition: service_healthy
     environment:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       USER_SERVICE_URI: http://user-service:8081
+      TASK_SERVICE_URI: http://task-service:8083
       SOLUTION_SERVICE_URI: http://solution-service:8084
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
-      KEYCLOAK_SERVICE_URL: http://keycloak:8090
+      KEYCLOAK_SERVICE_URI: http://keycloak:8080
     networks:
       - streamhub-network
+    restart: on-failure
 
 
   kafka-1:
@@ -239,6 +266,12 @@ services:
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAMES=PLAINTEXT
     volumes:
       - kafka_data1:/bitnami/kafka
+    healthcheck:
+      test: [ "CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9090", "--list" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 100s
     networks:
       - streamhub-network
 
@@ -259,6 +292,12 @@ services:
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAMES=PLAINTEXT
     volumes:
       - kafka_data2:/bitnami/kafka
+    healthcheck:
+      test: [ "CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9090", "--list" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 100s
     networks:
       - streamhub-network
 
@@ -279,33 +318,40 @@ services:
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAMES=PLAINTEXT
     volumes:
       - kafka_data3:/bitnami/kafka
+    healthcheck:
+      test: [ "CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9090", "--list" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 100s
     networks:
       - streamhub-network
 
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: kafka-ui
-    restart: on-failure
-    ports:
-      - "8989:8080"
-    environment:
-      DYNAMIC_CONFIG_ENABLED: "true"
-      KAFKA_CLUSTERS_0_NAME: Stream hub Kafka Cluster
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
-      KAFKA_CLUSTERS_0_METRICS_PORT: 9090
-      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: PLAINTEXT
-      KAFKA_CLUSTERS_0_TOPICS: ".*"
-      KAFKA_CLUSTERS_0_TOPICS_FILTER: ".*"
-      LOGGING_LEVEL_ROOT: INFO
-    depends_on:
-      kafka-1:
-        condition: service_started
-      kafka-2:
-        condition: service_started
-      kafka-3:
-        condition: service_started
-    networks:
-      - streamhub-network
+
+#  kafka-ui:
+#    image: provectuslabs/kafka-ui:latest
+#    container_name: kafka-ui
+#    restart: on-failure
+#    ports:
+#      - "8989:8080"
+#    environment:
+#      DYNAMIC_CONFIG_ENABLED: "true"
+#      KAFKA_CLUSTERS_0_NAME: Stream hub Kafka Cluster
+#      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
+#      KAFKA_CLUSTERS_0_METRICS_PORT: 9090
+#      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: PLAINTEXT
+#      KAFKA_CLUSTERS_0_TOPICS: ".*"
+#      KAFKA_CLUSTERS_0_TOPICS_FILTER: ".*"
+#      LOGGING_LEVEL_ROOT: INFO
+#    depends_on:
+#      kafka-1:
+#        condition: service_started
+#      kafka-2:
+#        condition: service_started
+#      kafka-3:
+#        condition: service_started
+#    networks:
+#      - streamhub-network
 
 
   keycloak-postgres:
@@ -316,7 +362,7 @@ services:
     environment:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: keycloak123
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     volumes:
       - keycloak_postgres_data:/var/lib/postgresql
     networks:
@@ -336,9 +382,7 @@ services:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: keycloak123
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_PORT: 8090
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
       KC_HOSTNAME_STRICT: false
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
@@ -349,6 +393,12 @@ services:
     depends_on:
       keycloak-postgres:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /realms/master HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q '200 OK' <&3" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 100s
     networks:
       - streamhub-network
     volumes:
@@ -374,7 +424,7 @@ services:
     container_name: mongo-express
     restart: unless-stopped
     ports:
-      - "8091:8091"
+      - "8091:8081"
     environment:
       ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME:-root}
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD:-root123}
@@ -383,6 +433,83 @@ services:
       ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_ROOT_PASSWORD:-root123}
     depends_on:
       - mongodb
+    networks:
+      - streamhub-network
+
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - streamhub-network
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: promtail
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # читает Docker логи
+      - ./observability/promtail-config.yaml:/etc/promtail/config.yaml
+    command: -config.file=/etc/promtail/config.yaml
+    depends_on:
+      - loki
+    networks:
+      - streamhub-network
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - loki
+      # - prometheus
+    networks:
+      - streamhub-network
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    container_name: otel-collector
+    command: [ "--config=/etc/otel/config.yaml" ]
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel/config.yaml
+    ports:
+      - "4318:4318"   # OTLP HTTP (сервисы сюда шлют трейсы)
+    depends_on:
+      - tempo
+    networks:
+      - streamhub-network
+
+  tempo:
+    image: grafana/tempo:2.5.0
+    container_name: tempo
+    command: [ "-config.file=/etc/tempo/config.yaml" ]
+    volumes:
+      - ./observability/tempo-config.yaml:/etc/tempo/config.yaml
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API (Grafana сюда ходит)
+    networks:
+      - streamhub-network
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-remote-write-receiver'
+    volumes:
+      - ./observability/prometheus-config.yaml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
     networks:
       - streamhub-network
 
@@ -395,6 +522,9 @@ volumes:
   kafka_data3:
   keycloak_postgres_data:
   mongo_data:
+  grafana-data:
+  tempo-data:
+  prometheus-data:
 
 networks:
   streamhub-network:

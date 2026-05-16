@@ -17,6 +17,7 @@ import com.technokratos.solutionservice.repository.MongoSolutionRepository;
 import com.technokratos.solutionservice.repository.SolutionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -52,6 +53,7 @@ public class SolutionService {
         solution.setTaskId(taskId);
 
         SolutionEntity saved = solutionRepository.save(solution);
+        MDC.put("solutionId", saved.getId().toString());
         SolutionSource solutionToMongo = SolutionSource.builder()
                 .code(dto.code())
                 .solutionId(saved.getId())

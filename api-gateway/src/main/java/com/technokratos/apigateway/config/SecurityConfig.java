@@ -1,5 +1,6 @@
 package com.technokratos.apigateway.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -46,8 +47,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public ReactiveJwtDecoder jwtDecoder() {
-        return ReactiveJwtDecoders.fromIssuerLocation("http://localhost:8090/realms/myrealm");
+    public ReactiveJwtDecoder jwtDecoder(
+            @Value("${services.keycloak-service.uri}") String keycloakUri) {
+        return ReactiveJwtDecoders.fromIssuerLocation(keycloakUri + "/realms/myrealm");
     }
 
     @Bean
