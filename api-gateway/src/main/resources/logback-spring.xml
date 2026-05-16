@@ -1,10 +1,11 @@
 <configuration>
 
     <springProperty name="LOG_LEVEL_ROOT" source="logging.level.root" defaultValue="INFO"/>
+    <springProperty name="APP_NAME" source="spring.application.name"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <customFields>{"service":"api-gateway"}</customFields>
+            <customFields>{"service":"${APP_NAME}"}</customFields>
         </encoder>
     </appender>
 

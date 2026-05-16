@@ -33,7 +33,7 @@ public class KeycloakService {
         form.add("grant_type", "refresh_token");
         form.add("client_id", "gateway");
         form.add("refresh_token", request.refreshToken());
-        form.add("client_secret", "RWuBpGsfRQAHGvK5qeKSwPtmWpa3wXUQ");
+        form.add("client_secret", clientSecret);
 
         return form;
     }
@@ -97,7 +97,7 @@ public class KeycloakService {
                 .flatMap(token ->
                         keyCloakWebClient.get()
                                 .uri("/admin/realms/myrealm/roles/{roleName}", "USER")
-                                .header("Authorization", "Bearer" + token)
+                                .header("Authorization", "Bearer " + token)
                                 .retrieve()
                                 .bodyToMono(Map.class)
                                 .flatMap(role -> {
@@ -105,7 +105,7 @@ public class KeycloakService {
 
                                             return keyCloakWebClient.post()
                                                     .uri("/admin/realms/myrealm/users/{id}/role-mappings/realm", keycloakId)
-                                                    .header("Authorization", "Bearer" + token)
+                                                    .header("Authorization", "Bearer " + token)
                                                     .bodyValue(List.of(Map.of(
                                                             "id", roleId,
                                                             "name", "USER"
@@ -160,7 +160,7 @@ public class KeycloakService {
                     Integer expiresIn = (Integer) response.get("expires_in");
                     if (token != null) {
                         cachedAdminToken = token;
-                        tokenExpiry = Instant.now().plus(expiresIn, ChronoUnit.MINUTES);
+                        tokenExpiry = Instant.now().plus(expiresIn - 30L, ChronoUnit.SECONDS);
                         log.debug("Token has been cached");
                         return cachedAdminToken;
                     }
