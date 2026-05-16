@@ -60,7 +60,7 @@
   ],
   "clients": [
     {
-      "clientId": "gateway-client",
+      "clientId": "gateway",
       "name": "API Gateway Client",
       "description": "Client for API Gateway",
       "enabled": true,

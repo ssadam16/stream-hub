@@ -8,6 +8,7 @@ plugins {
 
 ext {
     set('springCloudVersion', "2025.0.1")
+    set('otelInstrumentationVersion', "2.10.0")
 }
 
 group = 'com.technokratos'
@@ -40,12 +41,17 @@ subprojects {
 
     dependencies {
         implementation 'net.logstash.logback:logstash-logback-encoder:8.0'
+        implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+        implementation 'io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter'
+        implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+        implementation 'io.micrometer:micrometer-registry-prometheus'
     }
 
     dependencyManagement {
         imports {
             mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
             mavenBom SpringBootPlugin.BOM_COORDINATES
+            mavenBom "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:${otelInstrumentationVersion}"
         }
     }
 

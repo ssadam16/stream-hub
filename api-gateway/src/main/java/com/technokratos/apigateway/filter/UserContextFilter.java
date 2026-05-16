@@ -34,18 +34,12 @@ public class UserContextFilter implements GlobalFilter, Ordered {
                     String email = jwt.getClaimAsString("email");
                     String roles = extractRoles(jwt);
 
-                    String traceId = exchange.getRequest().getHeaders()
-                                    .getFirst("X-Trace-Id");
-
-                    if (traceId == null) traceId = UUID.randomUUID().toString();
-
                     log.debug("Propagating user context: userId={}, roles={}", userId, roles);
 
                     ServerHttpRequest mutated = exchange.getRequest().mutate()
                             .header("X-User-Id", userId)
                             .header("X-User-Email", email != null ? email : "")
                             .header("X-User-Roles", roles)
-                            .header("X-Trace-Id", traceId)
                             .build();
 
                     return exchange.mutate().request(mutated).build();

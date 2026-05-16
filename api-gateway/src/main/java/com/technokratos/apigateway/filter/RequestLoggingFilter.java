@@ -14,22 +14,17 @@ import reactor.core.publisher.Mono;
 public class RequestLoggingFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        long startTime = System.currentTimeMillis();
-
         ServerHttpRequest request = exchange.getRequest();
 
         return chain.filter(exchange).doFinally(signal -> {
-           long duration = System.currentTimeMillis() - startTime;
            int status = exchange.getResponse().getStatusCode() != null
                    ? exchange.getResponse().getStatusCode().value()
                    : 0;
 
-            log.info("method={} path={} status={} duration={}ms traceId={}",
+            log.info("method={} path={} status={}",
                     request.getMethod(),
                     request.getURI().getPath(),
-                    status,
-                    duration,
-                    request.getHeaders().getFirst("X-Trace-Id")
+                    status
             );
         });
 

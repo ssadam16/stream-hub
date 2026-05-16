@@ -38,4 +38,21 @@ logging:
   level:
     com.technokratos.solutionservice: DEBUG
 
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+
+otel:
+  exporter:
+    otlp:
+      endpoint: http://otel-collector:4318
+  resource:
+    attributes:
+      service.name: ${spring.application.name}
+
 task-service-uri: ${TASK_SERVICE_URI:http://localhost:8083/api/tasks}

@@ -137,6 +137,8 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
+      mongodb:
+          condition: service_started
       kafka-1:
         condition: service_healthy
       kafka-2:
@@ -269,7 +271,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 100s
     networks:
       - streamhub-network
 
@@ -295,7 +297,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 100s
     networks:
       - streamhub-network
 
@@ -321,35 +323,35 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 100s
     networks:
       - streamhub-network
 
 
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: kafka-ui
-    restart: on-failure
-    ports:
-      - "8989:8080"
-    environment:
-      DYNAMIC_CONFIG_ENABLED: "true"
-      KAFKA_CLUSTERS_0_NAME: Stream hub Kafka Cluster
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
-      KAFKA_CLUSTERS_0_METRICS_PORT: 9090
-      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: PLAINTEXT
-      KAFKA_CLUSTERS_0_TOPICS: ".*"
-      KAFKA_CLUSTERS_0_TOPICS_FILTER: ".*"
-      LOGGING_LEVEL_ROOT: INFO
-    depends_on:
-      kafka-1:
-        condition: service_started
-      kafka-2:
-        condition: service_started
-      kafka-3:
-        condition: service_started
-    networks:
-      - streamhub-network
+#  kafka-ui:
+#    image: provectuslabs/kafka-ui:latest
+#    container_name: kafka-ui
+#    restart: on-failure
+#    ports:
+#      - "8989:8080"
+#    environment:
+#      DYNAMIC_CONFIG_ENABLED: "true"
+#      KAFKA_CLUSTERS_0_NAME: Stream hub Kafka Cluster
+#      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
+#      KAFKA_CLUSTERS_0_METRICS_PORT: 9090
+#      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: PLAINTEXT
+#      KAFKA_CLUSTERS_0_TOPICS: ".*"
+#      KAFKA_CLUSTERS_0_TOPICS_FILTER: ".*"
+#      LOGGING_LEVEL_ROOT: INFO
+#    depends_on:
+#      kafka-1:
+#        condition: service_started
+#      kafka-2:
+#        condition: service_started
+#      kafka-3:
+#        condition: service_started
+#    networks:
+#      - streamhub-network
 
 
   keycloak-postgres:
@@ -472,6 +474,45 @@ services:
     networks:
       - streamhub-network
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    container_name: otel-collector
+    command: [ "--config=/etc/otel/config.yaml" ]
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel/config.yaml
+    ports:
+      - "4318:4318"   # OTLP HTTP (сервисы сюда шлют трейсы)
+    depends_on:
+      - tempo
+    networks:
+      - streamhub-network
+
+  tempo:
+    image: grafana/tempo:2.5.0
+    container_name: tempo
+    command: [ "-config.file=/etc/tempo/config.yaml" ]
+    volumes:
+      - ./observability/tempo-config.yaml:/etc/tempo/config.yaml
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API (Grafana сюда ходит)
+    networks:
+      - streamhub-network
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-remote-write-receiver'
+    volumes:
+      - ./observability/prometheus-config.yaml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - streamhub-network
+
 volumes:
   user-service-postgres-data:
   task-service-postgres-data:
@@ -482,6 +523,8 @@ volumes:
   keycloak_postgres_data:
   mongo_data:
   grafana-data:
+  tempo-data:
+  prometheus-data:
 
 networks:
   streamhub-network:

@@ -51,9 +51,9 @@ public class SolutionService {
         solution.setUserId(userId);
         solution.setStatus(SolutionStatus.PENDING);
         solution.setTaskId(taskId);
-        MDC.put("solutionId", solution.getId().toString());
 
         SolutionEntity saved = solutionRepository.save(solution);
+        MDC.put("solutionId", saved.getId().toString());
         SolutionSource solutionToMongo = SolutionSource.builder()
                 .code(dto.code())
                 .solutionId(saved.getId())
