@@ -58,7 +58,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ExceptionMessage> handleIllegalArgument(IllegalArgumentException ex) {
-        log.error("Illegal argument error");
+        log.error("Illegal argument was received");
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ExceptionMessage.builder()
