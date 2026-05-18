@@ -1,7 +1,7 @@
 package com.technokratos.userservice.api;
 
-import com.technokratos.common.exceptions.ExceptionMessage;
-import com.technokratos.common.exceptions.ValidationExceptionMessage;
+import com.technokratos.common.handler.exceptions.ExceptionMessage;
+import com.technokratos.common.handler.exceptions.ValidationExceptionMessage;
 import com.technokratos.userservice.dto.request.UserRegisterRequest;
 import com.technokratos.userservice.dto.response.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;

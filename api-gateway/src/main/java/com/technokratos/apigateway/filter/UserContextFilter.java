@@ -15,7 +15,6 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Component
 @Slf4j
@@ -49,11 +48,9 @@ public class UserContextFilter implements GlobalFilter, Ordered {
     }
 
     private String extractRoles(Jwt jwt) {
-        // У тебя роли в resource_access.gateway.roles
-        Map<String, Object> resourceAccess = jwt.getClaimAsMap("resource_access");
-        if (resourceAccess != null && resourceAccess.containsKey("gateway")) {
-            Map<String, Object> gateway = (Map<String, Object>) resourceAccess.get("gateway");
-            List<String> roles = (List<String>) gateway.get("roles");
+        Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+        if (realmAccess != null && realmAccess.containsKey("roles")) {
+            List<String> roles = (List<String>) realmAccess.get("roles");
             if (roles != null) {
                 return String.join(",", roles);
             }

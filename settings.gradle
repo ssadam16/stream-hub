@@ -1,7 +1,6 @@
 rootProject.name = 'stream-hub'
 
 include 'user-service'
-include 'config-server'
 include 'api-gateway'
 include 'task-service'
 include 'common'

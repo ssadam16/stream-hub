@@ -8,6 +8,7 @@ import com.github.dockerjava.api.model.*;
 import com.technokratos.codeexecutorservice.configuration.LanguageConfig;
 import com.technokratos.codeexecutorservice.executors.LanguageExecutor;
 import com.technokratos.common.dto.ExecResult;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
@@ -19,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -27,6 +29,19 @@ import java.util.concurrent.TimeUnit;
 public class DockerManager {
 
     private final DockerClient dockerClient;
+
+    @PostConstruct
+    public void cleanupStaleContainers() {
+        log.info("Cleaning up stale containers...");
+
+        dockerClient.listContainersCmd()
+                .withLabelFilter(Map.of("stream-hub.executor", "true"))
+                .exec()
+                .forEach(c -> {
+                    dockerClient.removeContainerCmd(c.getId()).withForce(true).exec();
+                    log.debug("Removed stale container: {}", c.getId().substring(0, 12));
+                });
+    }
 
     private void ensureImageExists(String imageName) {
         try {
@@ -71,13 +86,20 @@ public class DockerManager {
         LanguageConfig config = executor.getConfig();
         String containerWorkDir = config.getWorkingDir();
 
-        long memorySwap = config.getMemoryMB() * 1024L * 1024L;
+        long memoryBytes = config.getMemoryMB() * 1024L * 1024L;
 
         HostConfig hostConfig = HostConfig.newHostConfig()
-                .withMemory(memorySwap)
+                .withMemory(memoryBytes)
                 .withCpuCount(config.getCpuCount())
                 .withPidsLimit(config.getPidsLimit() != null ? config.getPidsLimit() : 64L)
-                .withMemorySwap(memorySwap)
+                .withMemorySwap(memoryBytes)
+                .withCapDrop(Capability.ALL)
+                .withReadonlyRootfs(true)
+                .withTmpFs(Map.of(
+                        "/tmp",       "rw,nosuid,size=64m",
+                        "/workspace", "rw,nosuid,size=32m"
+                ))
+                .withSecurityOpts(List.of("no-new-privileges:true"))
                 .withNetworkMode("none");
 
         CreateContainerResponse container = dockerClient.createContainerCmd(executor.getImage())
@@ -86,6 +108,11 @@ public class DockerManager {
                 .withCmd("tail", "-f", "/dev/null")
                 .withAttachStdout(true)
                 .withAttachStderr(true)
+                .withLabels(Map.of(
+                        "stream-hub.executor", "true",
+                        "created_by", "code-executor-service"
+                ))
+                .withUser("1000:1000")
                 .exec();
 
         log.info("Created container {} for language {}", container.getId(), executor.getLanguage());
