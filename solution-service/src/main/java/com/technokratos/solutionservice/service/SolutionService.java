@@ -5,11 +5,12 @@ import com.technokratos.common.enums.SolutionStatus;
 import com.technokratos.common.events.CodeExecutionRequest;
 import com.technokratos.common.events.CodeExecutionResult;
 import com.technokratos.common.events.SolutionCompletedEvent;
+import com.technokratos.common.handler.exceptions.AccessDeniedException;
 import com.technokratos.solutionservice.client.TaskClient;
 import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.dto.SolutionResponse;
 import com.technokratos.solutionservice.dto.SolutionResultResponse;
-import com.technokratos.common.exceptions.SolutionNotFound;
+import com.technokratos.common.handler.exceptions.SolutionNotFound;
 import com.technokratos.solutionservice.mapper.SolutionMapper;
 import com.technokratos.solutionservice.model.SolutionEntity;
 import com.technokratos.solutionservice.model.SolutionSource;
@@ -162,7 +163,16 @@ public class SolutionService {
         return mapper.toSolutionResponse(solution);
     }
 
-    public void deleteOne(UUID id) {
+    public void deleteOne(UUID id, UUID userId, String roles) {
+        SolutionEntity solution = solutionRepository.findById(id)
+                .orElseThrow(() -> new SolutionNotFound(id));
+
+        boolean isAdmin = roles.contains("ADMIN");
+
+        if (!isAdmin && !solution.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You can only delete your own solutions");
+        }
+
         solutionRepository.deleteById(id);
     }
 }

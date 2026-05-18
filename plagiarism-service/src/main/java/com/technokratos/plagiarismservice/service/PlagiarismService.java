@@ -2,7 +2,7 @@ package com.technokratos.plagiarismservice.service;
 
 import com.technokratos.common.enums.ProgrammingLanguage;
 import com.technokratos.common.events.SolutionCompletedEvent;
-import com.technokratos.common.exceptions.SolutionNotFound;
+import com.technokratos.common.handler.exceptions.SolutionNotFound;
 import com.technokratos.plagiarismservice.model.PlagiarismReport;
 import com.technokratos.plagiarismservice.model.SolutionSource;
 import com.technokratos.plagiarismservice.repository.MongoPlagiarismReportRepository;

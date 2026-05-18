@@ -34,8 +34,12 @@ public class SolutionController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteOne(@PathVariable UUID id) {
-        solutionService.deleteOne(id);
+    public void deleteOne(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestHeader("X-User-Roles") String roles
+    ) {
+        solutionService.deleteOne(id, userId, roles);
     }
 
     @GetMapping("/{id}")

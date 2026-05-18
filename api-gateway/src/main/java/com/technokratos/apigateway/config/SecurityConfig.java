@@ -32,7 +32,9 @@ public class SecurityConfig {
                         .pathMatchers("/api/auth/**").permitAll()
                         .pathMatchers("/actuator/**").permitAll()
                         .pathMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .pathMatchers("/api/users").hasAuthority("ADMIN")
+                        .pathMatchers("/api/users").hasRole("ADMIN")
+                        .pathMatchers("/api/tasks/**").hasRole("ADMIN")
+                        .pathMatchers("/api/tasks/me/**").hasRole("USER")
                         .anyExchange().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -56,18 +58,13 @@ public class SecurityConfig {
     public Converter<Jwt, Mono<AbstractAuthenticationToken>> jwtAuthenticationConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
 
-        // Настраиваем, откуда брать роли
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            // Берём роли из resource_access.gateway.roles
-            Map<String, Object> resourceAccess = jwt.getClaimAsMap("resource_access");
-            if (resourceAccess != null && resourceAccess.containsKey("gateway")) {
-                Map<String, Object> gateway = (Map<String, Object>) resourceAccess.get("gateway");
-                List<String> roles = (List<String>) gateway.get("roles");
-                if (roles != null) {
-                    return roles.stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .collect(Collectors.toList());
-                }
+            Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+            if (realmAccess != null && realmAccess.containsKey("roles")) {
+                List<String> roles = (List<String>) realmAccess.get("roles");
+                return roles.stream()
+                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                        .collect(Collectors.toList());
             }
             return List.of();
         });

@@ -4,12 +4,11 @@ import com.technokratos.common.enums.Role;
 import com.technokratos.userservice.dto.request.UserRegisterRequest;
 import com.technokratos.userservice.dto.response.UserResponse;
 import com.technokratos.userservice.entities.UserEntity;
-import com.technokratos.userservice.handler.exceptions.UserNotFoundException;
+import com.technokratos.userservice.exception.UserNotFoundException;
 import com.technokratos.userservice.mappers.UserMapper;
 import com.technokratos.userservice.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

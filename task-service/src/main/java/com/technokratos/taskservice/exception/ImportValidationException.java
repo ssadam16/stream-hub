@@ -1,6 +1,6 @@
 package com.technokratos.taskservice.exception;
 
-import com.technokratos.common.exceptions.ClientException;
+import com.technokratos.common.handler.exceptions.ClientException;
 import lombok.Getter;
 
 import java.util.List;

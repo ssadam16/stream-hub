@@ -1,0 +1,95 @@
+# Этот файл используется ТОЛЬКО локально поверх docker-compose.yaml:
+# docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml up
+#
+# Открывает порты для прямого доступа из IDE, DataGrip, Postman и т.д.
+
+services:
+
+  # ---- Сервисы ----
+  user-service:
+    ports:
+      - "8081:8081"
+
+  task-service:
+    ports:
+      - "8083:8083"
+
+  solution-service:
+    ports:
+      - "8084:8084"
+
+  code-executor-service:
+    ports:
+      - "8085:8085"
+
+  plagiarism-service:
+    ports:
+      - "8086:8086"
+
+  # ---- БД ----
+  user-service-postgres:
+    ports:
+      - "5432:5432"
+
+  task-service-postgres:
+    ports:
+      - "5433:5432"
+
+  solution-service-postgres:
+    ports:
+      - "5434:5432"
+
+  keycloak-postgres:
+    ports:
+      - "5444:5432"
+
+  mongodb:
+    ports:
+      - "27017:27017"
+
+  # ---- Kafka ----
+  kafka-1:
+    ports:
+      - "9092:9092"
+
+  kafka-2:
+    ports:
+      - "9094:9094"
+
+  kafka-3:
+    ports:
+      - "9096:9096"
+
+  # ---- Dev инструменты ----
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    restart: unless-stopped
+    ports:
+      - "8091:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_ROOT_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    depends_on:
+      - mongodb
+    networks:
+      - streamhub-network
+
+  prometheus:
+    ports:
+      - "9090:9090"
+
+  otel-collector:
+    ports:
+      - "4318:4318"
+
+  tempo:
+    ports:
+      - "3200:3200"
+
+  loki:
+    ports:
+      - "3100:3100"

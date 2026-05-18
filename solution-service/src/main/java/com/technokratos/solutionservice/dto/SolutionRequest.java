@@ -12,7 +12,7 @@ import java.util.UUID;
  * DTO for {@link SolutionEntity}
  */
 public record SolutionRequest(
-        ProgrammingLanguage language,
+        @NotNull ProgrammingLanguage language,
         @NotBlank String code
 ) {
 }
