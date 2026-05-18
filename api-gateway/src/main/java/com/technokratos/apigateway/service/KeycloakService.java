@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -80,8 +81,7 @@ public class KeycloakService {
                                 .toBodilessEntity()
                                 .flatMap(response -> {
                                     // 2. Получаем ID созданного пользователя
-                                    String location = response.getHeaders().getFirst("Location");
-                                    assert location != null;
+                                    String location = Objects.requireNonNull(response.getHeaders().getFirst("Location"), "Location header missing");
                                     String keycloakId = location.substring(location.lastIndexOf("/") + 1);
                                     log.debug("Location: {}, keycloakId: {}", location, keycloakId);
 

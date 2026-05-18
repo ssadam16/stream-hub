@@ -3,8 +3,6 @@ services:
     container_name: user-service-postgres
     image: postgres:latest
     restart: on-failure
-    ports:
-      - "5432:5432"
     volumes:
       - user-service-postgres-data:/var/lib/postgresql
     environment:
@@ -24,8 +22,6 @@ services:
     container_name: task-service-postgres
     image: postgres:latest
     restart: on-failure
-    ports:
-      - "5433:5432"
     volumes:
       - task-service-postgres-data:/var/lib/postgresql
     environment:
@@ -45,8 +41,6 @@ services:
     container_name: solution-service-postgres
     image: postgres:latest
     restart: on-failure
-    ports:
-      - "5434:5432"
     volumes:
       - solution-service-postgres-data:/var/lib/postgresql
     environment:
@@ -62,198 +56,40 @@ services:
     networks:
       - streamhub-network
 
-  #  code-executor-service-postgres:
-  #    container_name: code-executor-service-postgres
-  #    image: postgres:latest
-  #    restart: on-failure
-  #    ports:
-  #      - "5435:5432"
-  #    volumes:
-  #      - code-executor-service-postgres-data:/var/lib/postgresql
-  #    environment:
-  #      POSTGRES_USER: postgres
-  #      POSTGRES_PASSWORD: ${DB_PASSWORD}
-  #      POSTGRES_DB: code-executor-service-db
-  #    healthcheck:
-  #      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
-  #      interval: 10s
-  #      timeout: 5s
-  #      start_period: 10s
-  #      retries: 5
-  #    networks:
-  #      - streamhub-network
-
-  config-server:
-    container_name: config-server
-    build:
-      context: .
-      dockerfile: config-server-Dockerfile.dev
-    ports:
-      - "8888:8888"
+  keycloak-postgres:
+    image: postgres:latest
+    container_name: keycloak-postgres
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - keycloak_postgres_data:/var/lib/postgresql
+    networks:
+      - streamhub-network
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/actuator/health" ]
+      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
       interval: 10s
       timeout: 5s
-      start_period: 30s
-      retries: 10
-    networks:
-      - streamhub-network
+      start_period: 10s
+      retries: 5
 
-
-  code-executor-service:
-    container_name: code-executor-service
-    build:
-      context: .
-      dockerfile: code-executor-service-Dockerfile.dev
-    ports:
-      - "8085:8085"
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: mongo-db
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      config-server:
-        condition: service_healthy
-      kafka-1:
-        condition: service_healthy
-      kafka-2:
-        condition: service_healthy
-      kafka-3:
-        condition: service_healthy
-    environment:
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      TASK_SERVICE_URI: http://task-service:8083/api/tasks
-      BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
+      - mongo_data:/data/db
     networks:
       - streamhub-network
-
-  solution-service:
-    container_name: solution-service
-    build:
-      context: .
-      dockerfile: solution-service-Dockerfile.dev
-    ports:
-      - "8084:8084"
-    depends_on:
-      solution-service-postgres:
-        condition: service_healthy
-      config-server:
-        condition: service_healthy
-      mongodb:
-          condition: service_started
-      kafka-1:
-        condition: service_healthy
-      kafka-2:
-        condition: service_healthy
-      kafka-3:
-        condition: service_healthy
-    environment:
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      SPRING_DATASOURCE_USERNAME: postgres
-      TASK_SERVICE_URI: http://task-service:8083/api/tasks
-      SPRING_DATASOURCE_URL: jdbc:postgresql://solution-service-postgres:5432/solution-service-db
-      DB_PASSWORD: ${DB_PASSWORD}
-      MONGO_HOST: mongodb
-      MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
-      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
-      BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
-    networks:
-      - streamhub-network
-
-  plagiarism-service:
-    container_name: plagiarism-service
-    build:
-      context: .
-      dockerfile: plagiarism-service-Dockerfile.dev
-    ports:
-      - "8086:8086"
-    depends_on:
-      config-server:
-        condition: service_healthy
-      mongodb:
-        condition: service_started
-      kafka-1:
-        condition: service_healthy
-      kafka-2:
-        condition: service_healthy
-      kafka-3:
-        condition: service_healthy
-    environment:
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
-      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:-root123}@mongodb:27017/mongo-db?authSource=admin
-    networks:
-      - streamhub-network
-
-  user-service:
-    container_name: user-service
-    build:
-      context: .
-      dockerfile: user-service-Dockerfile.dev
-    ports:
-      - "8081:8081"
-    depends_on:
-      user-service-postgres:
-        condition: service_healthy
-      config-server:
-        condition: service_healthy
-    environment:
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_URL: jdbc:postgresql://user-service-postgres:5432/user-service-db
-      DB_PASSWORD: ${DB_PASSWORD}
-    networks:
-      - streamhub-network
-
-  task-service:
-    container_name: task-service
-    build:
-      context: .
-      dockerfile: task-service-Dockerfile.dev
-    ports:
-      - "8083:8083"
-    depends_on:
-      task-service-postgres:
-        condition: service_healthy
-      config-server:
-        condition: service_healthy
-    environment:
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_URL: jdbc:postgresql://task-service-postgres:5432/task-service-db
-      DB_PASSWORD: ${DB_PASSWORD}
-    networks:
-      - streamhub-network
-
-  api-gateway:
-    container_name: api-gateway
-    build:
-      context: .
-      dockerfile: api-gateway-Dockerfile.dev
-    ports:
-      - "8080:8080"
-    depends_on:
-      config-server:
-        condition: service_healthy
-      user-service:
-        condition: service_started
-      keycloak:
-        condition: service_healthy
-    environment:
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      USER_SERVICE_URI: http://user-service:8081
-      TASK_SERVICE_URI: http://task-service:8083
-      SOLUTION_SERVICE_URI: http://solution-service:8084
-      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
-      KEYCLOAK_SERVICE_URI: http://keycloak:8080
-    networks:
-      - streamhub-network
-    restart: on-failure
-
 
   kafka-1:
     image: bitnamilegacy/kafka:latest
     restart: on-failure
-    ports:
-      - "9092:9092"
     environment:
       - KAFKA_CFG_NODE_ID=1
       - KAFKA_KRAFT_CLUSTER_ID=${CLUSTER_ID}
@@ -278,15 +114,13 @@ services:
   kafka-2:
     image: bitnamilegacy/kafka:latest
     restart: on-failure
-    ports:
-      - "9094:9094"
     environment:
       - KAFKA_CFG_NODE_ID=2
       - KAFKA_KRAFT_CLUSTER_ID=${CLUSTER_ID}
       - KAFKA_CFG_PROCESS_ROLES=controller,broker
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9091,2@kafka-2:9091,3@kafka-3:9091
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9090,CONTROLLER://:9091,EXTERNAL://:9094
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-2:9090, EXTERNAL://${HOSTNAME:-localhost}:9094
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-2:9090,EXTERNAL://${HOSTNAME:-localhost}:9094
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAMES=PLAINTEXT
@@ -304,15 +138,13 @@ services:
   kafka-3:
     image: bitnamilegacy/kafka:latest
     restart: on-failure
-    ports:
-      - "9096:9096"
     environment:
       - KAFKA_CFG_NODE_ID=3
       - KAFKA_KRAFT_CLUSTER_ID=${CLUSTER_ID}
       - KAFKA_CFG_PROCESS_ROLES=controller,broker
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9091,2@kafka-2:9091,3@kafka-3:9091
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9090,CONTROLLER://:9091,EXTERNAL://:9096
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-3:9090, EXTERNAL://${HOSTNAME:-localhost}:9096
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-3:9090,EXTERNAL://${HOSTNAME:-localhost}:9096
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAMES=PLAINTEXT
@@ -327,53 +159,6 @@ services:
     networks:
       - streamhub-network
 
-
-#  kafka-ui:
-#    image: provectuslabs/kafka-ui:latest
-#    container_name: kafka-ui
-#    restart: on-failure
-#    ports:
-#      - "8989:8080"
-#    environment:
-#      DYNAMIC_CONFIG_ENABLED: "true"
-#      KAFKA_CLUSTERS_0_NAME: Stream hub Kafka Cluster
-#      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
-#      KAFKA_CLUSTERS_0_METRICS_PORT: 9090
-#      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: PLAINTEXT
-#      KAFKA_CLUSTERS_0_TOPICS: ".*"
-#      KAFKA_CLUSTERS_0_TOPICS_FILTER: ".*"
-#      LOGGING_LEVEL_ROOT: INFO
-#    depends_on:
-#      kafka-1:
-#        condition: service_started
-#      kafka-2:
-#        condition: service_started
-#      kafka-3:
-#        condition: service_started
-#    networks:
-#      - streamhub-network
-
-
-  keycloak-postgres:
-    image: postgres:latest
-    container_name: keycloak-postgres
-    ports:
-      - '5444:5432'
-    environment:
-      POSTGRES_DB: keycloak
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-    volumes:
-      - keycloak_postgres_data:/var/lib/postgresql
-    networks:
-      - streamhub-network
-    healthcheck:
-      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
-      interval: 10s
-      timeout: 5s
-      start_period: 10s
-      retries: 5
-
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: keycloak
@@ -385,11 +170,11 @@ services:
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
       KC_HOSTNAME_STRICT: false
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HTTP_ENABLED: true
       KC_PROXY: edge
     ports:
-      - "8090:8080"
+      - "8090:8080"  # нужен снаружи — фронт логинится через него
     depends_on:
       keycloak-postgres:
         condition: service_healthy
@@ -404,43 +189,130 @@ services:
     volumes:
       - ./keycloak-export:/opt/keycloak/data/import
 
-  mongodb:
-    image: mongo:7
-    container_name: mongodb
-    restart: unless-stopped
+  user-service:
+    container_name: user-service
+    build:
+      context: .
+      dockerfile: user-service-Dockerfile.dev
+    depends_on:
+      user-service-postgres:
+        condition: service_healthy
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-root}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-root123}
-      MONGO_INITDB_DATABASE: mongo-db
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-service-postgres:5432/user-service-db
+      DB_PASSWORD: ${DB_PASSWORD}
     networks:
       - streamhub-network
 
-  mongo-express:
-    image: mongo-express:latest
-    container_name: mongo-express
-    restart: unless-stopped
-    ports:
-      - "8091:8081"
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME:-root}
-      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD:-root123}
-      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:-root123}@mongodb:27017/
-      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_ROOT_USERNAME:-root}
-      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_ROOT_PASSWORD:-root123}
+  task-service:
+    container_name: task-service
+    build:
+      context: .
+      dockerfile: task-service-Dockerfile.dev
     depends_on:
-      - mongodb
+      task-service-postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://task-service-postgres:5432/task-service-db
+      DB_PASSWORD: ${DB_PASSWORD}
     networks:
       - streamhub-network
+
+  solution-service:
+    container_name: solution-service
+    build:
+      context: .
+      dockerfile: solution-service-Dockerfile.dev
+    depends_on:
+      solution-service-postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_USERNAME: postgres
+      TASK_SERVICE_URI: http://task-service:8083/api/tasks
+      SPRING_DATASOURCE_URL: jdbc:postgresql://solution-service-postgres:5432/solution-service-db
+      DB_PASSWORD: ${DB_PASSWORD}
+      MONGO_HOST: mongodb
+      MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
+    networks:
+      - streamhub-network
+
+  code-executor-service:
+    container_name: code-executor-service
+    build:
+      context: .
+      dockerfile: code-executor-service-Dockerfile.dev
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+    environment:
+      TASK_SERVICE_URI: http://task-service:8083/api/tasks
+      BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
+    networks:
+      - streamhub-network
+
+  plagiarism-service:
+    container_name: plagiarism-service
+    build:
+      context: .
+      dockerfile: plagiarism-service-Dockerfile.dev
+    depends_on:
+      mongodb:
+        condition: service_started
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+    environment:
+      BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/mongo-db?authSource=admin
+    networks:
+      - streamhub-network
+
+  api-gateway:
+    container_name: api-gateway
+    build:
+      context: .
+      dockerfile: api-gateway-Dockerfile.dev
+    ports:
+      - "8080:8080"  # единственная точка входа для клиентов
+    depends_on:
+      user-service:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+    environment:
+      USER_SERVICE_URI: http://user-service:8081
+      TASK_SERVICE_URI: http://task-service:8083
+      SOLUTION_SERVICE_URI: http://solution-service:8084
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_SERVICE_URI: http://keycloak:8080
+      OTEL_HOST: otel-collector
+    networks:
+      - streamhub-network
+    restart: on-failure
 
   loki:
     image: grafana/loki:3.0.0
     container_name: loki
-    ports:
-      - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - streamhub-network
@@ -449,7 +321,7 @@ services:
     image: grafana/promtail:3.0.0
     container_name: promtail
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock  # читает Docker логи
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./observability/promtail-config.yaml:/etc/promtail/config.yaml
     command: -config.file=/etc/promtail/config.yaml
     depends_on:
@@ -461,16 +333,15 @@ services:
     image: grafana/grafana:11.0.0
     container_name: grafana
     ports:
-      - "3000:3000"
+      - "3000:3000"  # дашборды нужны снаружи
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
     volumes:
       - ./observability/grafana/provisioning:/etc/grafana/provisioning
       - grafana-data:/var/lib/grafana
     depends_on:
       - loki
-      # - prometheus
     networks:
       - streamhub-network
 
@@ -480,8 +351,6 @@ services:
     command: [ "--config=/etc/otel/config.yaml" ]
     volumes:
       - ./observability/otel-collector-config.yaml:/etc/otel/config.yaml
-    ports:
-      - "4318:4318"   # OTLP HTTP (сервисы сюда шлют трейсы)
     depends_on:
       - tempo
     networks:
@@ -494,8 +363,6 @@ services:
     volumes:
       - ./observability/tempo-config.yaml:/etc/tempo/config.yaml
       - tempo-data:/var/tempo
-    ports:
-      - "3200:3200"   # Tempo HTTP API (Grafana сюда ходит)
     networks:
       - streamhub-network
 
@@ -508,8 +375,6 @@ services:
     volumes:
       - ./observability/prometheus-config.yaml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
-    ports:
-      - "9090:9090"
     networks:
       - streamhub-network
 
