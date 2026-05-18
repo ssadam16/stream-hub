@@ -37,7 +37,6 @@ public class TaskController implements TaskApi {
 
     @Override
     public Page<TaskResponse> getAllTasks(@RequestParam(required = false) Set<TaskDifficulty> difficulty,
-                                          @RequestParam(required = false) Set<ProgrammingLanguage> language,
                                           @RequestParam(required = false) UUID authorId,
                                           @RequestParam(required = false) Set<TaskTestType> type,
                                           @RequestParam(required = false) Short minRating,
@@ -50,7 +49,6 @@ public class TaskController implements TaskApi {
 
         return taskService.getTasksByFilters(TaskFilterRequest.builder()
                 .difficulties(difficulty)
-                .languages(language)
                 .authorId(authorId)
                 .types(type)
                 .minRating(minRating)

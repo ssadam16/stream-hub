@@ -51,11 +51,6 @@ public class Task extends BaseEntity {
     private Integer memoryLimit;
 
     @Column(nullable = false)
-    @ColumnDefault("NONE")
-    @Enumerated(EnumType.STRING)
-    private ProgrammingLanguage language;
-
-    @Column(nullable = false)
     @ColumnDefault("0")
     private Short rating;
 }

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -52,6 +53,17 @@ public class GlobalExceptionHandler {
                 .body(ExceptionMessage.builder()
                         .message(e.getMessage())
                         .exceptionName(e.getClass().getName())
+                        .build());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ExceptionMessage> handleIllegalArgument(IllegalArgumentException ex) {
+        log.error("Illegal argument error");
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ExceptionMessage.builder()
+                        .message(ex.getMessage())
+                        .exceptionName(ex.getClass().getName())
                         .build());
     }
 }

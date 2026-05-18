@@ -58,9 +58,6 @@ public interface TaskApi {
             @Parameter(description = "Уровни сложности задачи (можно указать несколько)", example = "EASY")
             @RequestParam(required = false) Set<TaskDifficulty> difficulty,
 
-            @Parameter(description = "Языки программирования (можно указать несколько)", example = "JAVA")
-            @RequestParam(required = false) Set<ProgrammingLanguage> language,
-
             @Parameter(description = "ID автора задачи", example = "550e8400-e29b-41d4-a716-446655440000")
             @RequestParam(required = false) UUID authorId,
 

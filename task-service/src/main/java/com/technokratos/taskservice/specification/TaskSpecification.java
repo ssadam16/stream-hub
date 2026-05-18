@@ -15,7 +15,6 @@ import java.util.UUID;
 public class TaskSpecification {
 
     public static Specification<Task> filterBy(Set<TaskDifficulty> difficulties,
-                                               Set<ProgrammingLanguage> languages,
                                                UUID authorId,
                                                Set<TaskTestType> types,
                                                Short minRating,
@@ -27,10 +26,6 @@ public class TaskSpecification {
 
             if (difficulties != null && !difficulties.isEmpty()) {
                 predicates.add(root.get("difficulty").in(difficulties));
-            }
-
-            if (languages != null && !languages.isEmpty()) {
-                predicates.add(root.get("language").in(languages));
             }
 
             if (authorId != null) {

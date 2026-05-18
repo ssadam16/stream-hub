@@ -20,8 +20,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +35,8 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
     private final ConsoleTestCaseMapper mapper;
+
+    private static final Set<String> FIELDS_NAME = Arrays.stream(Task.class.getFields()).map(Field::getName).collect(Collectors.toSet());
 
     @Transactional
     public TaskResponse create(TaskCreatingRequest request) {
@@ -77,6 +83,11 @@ public class TaskService {
             sortField = "createdAt";
         }
 
+        if (!FIELDS_NAME.contains(sortField)) {
+            log.warn("illegal value for sortBy");
+            throw new IllegalArgumentException("sortBy value is incorrect");
+        }
+
         Sort sort = Sort.by(direction, sortField);
         Pageable pageable = PageRequest.of(
                 filterRequest.getPage() != null ? filterRequest.getPage() : 0,
@@ -86,7 +97,6 @@ public class TaskService {
 
         Specification<Task> specification = TaskSpecification.filterBy(
                 filterRequest.getDifficulties(),
-                filterRequest.getLanguages(),
                 filterRequest.getAuthorId(),
                 filterRequest.getTypes(),
                 filterRequest.getMinRating(),
