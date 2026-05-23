@@ -1,7 +1,5 @@
-package com.technokratos.taskservice.model.tests;
+package com.technokratos.taskservice.model;
 
-import com.technokratos.taskservice.model.BaseEntity;
-import com.technokratos.taskservice.model.Task;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -30,4 +28,6 @@ public class ConsoleTestCase extends BaseEntity {
 
     @Column(nullable = false)
     private boolean isHidden;
+
+    private String explanation;
 }
