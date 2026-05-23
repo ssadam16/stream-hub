@@ -1,5 +1,6 @@
 package com.technokratos.apigateway.config;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,19 +23,31 @@ import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebFluxSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final CustomAccessDeniedHandler accessDeniedHandler;
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http, ReactiveJwtDecoder jwtDecoder) {
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/api/auth/**").permitAll()
+                        .pathMatchers("/api/v1/auth/**").permitAll()
                         .pathMatchers("/actuator/**").permitAll()
-                        .pathMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .pathMatchers("/api/users").hasRole("ADMIN")
-                        .pathMatchers("/api/tasks/**").hasRole("ADMIN")
-                        .pathMatchers("/api/tasks/me/**").hasRole("USER")
+                        .pathMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+
+                        .pathMatchers("/api/v1/admin/**").hasRole("ADMIN")
+
+                        .pathMatchers(
+                                "/api/v1/tasks/**",
+                                "/api/v1/solutions/**",
+                                "/api/v1/tags/**",
+                                "/api/v1/users/**",
+                                "/api/v1/plagiarism/**"
+                        ).hasAnyRole("USER", "ADMIN")
+
                         .anyExchange().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -42,6 +55,9 @@ public class SecurityConfig {
                                 .jwtDecoder(jwtDecoder)
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter())
                         )
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+
                 )
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
@@ -51,7 +67,7 @@ public class SecurityConfig {
     @Bean
     public ReactiveJwtDecoder jwtDecoder(
             @Value("${services.keycloak-service.uri}") String keycloakUri) {
-        return ReactiveJwtDecoders.fromIssuerLocation(keycloakUri + "/realms/myrealm");
+        return ReactiveJwtDecoders.fromIssuerLocation("%s/realms/myrealm".formatted(keycloakUri));
     }
 
     @Bean
@@ -63,7 +79,7 @@ public class SecurityConfig {
             if (realmAccess != null && realmAccess.containsKey("roles")) {
                 List<String> roles = (List<String>) realmAccess.get("roles");
                 return roles.stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                        .map(role -> new SimpleGrantedAuthority("ROLE_%s".formatted(role)))
                         .collect(Collectors.toList());
             }
             return List.of();
