@@ -1,0 +1,8 @@
+otel:
+  sdk:
+    disabled: true
+
+management:
+  tracing:
+    sampling:
+      probability: 0.0

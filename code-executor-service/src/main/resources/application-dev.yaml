@@ -1,0 +1,13 @@
+otel:
+  sdk:
+    disabled: true
+
+management:
+  tracing:
+    sampling:
+      probability: 0.0
+
+logging:
+  level:
+    org.springframework.kafka: INFO
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: INFO
