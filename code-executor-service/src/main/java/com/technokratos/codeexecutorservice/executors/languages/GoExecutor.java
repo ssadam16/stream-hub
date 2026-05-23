@@ -45,9 +45,7 @@ public class GoExecutor implements LanguageExecutor {
     @Override
     public LanguageConfig getConfig() {
         return LanguageConfig.builder()
-                .memoryMB(256L)
                 .cpuCount(1L)
-                .timeout(10)
                 .pidsLimit(256L)
                 .workingDir("/workspace")
                 .build();

@@ -5,7 +5,7 @@ import com.technokratos.codeexecutorservice.configuration.ExecutorProperties;
 import com.technokratos.codeexecutorservice.executors.LanguageExecutor;
 import com.technokratos.codeexecutorservice.executors.LanguageExecutorFactory;
 import com.technokratos.common.dto.ExecResult;
-import com.technokratos.common.dto.tests.TestCasePayload;
+import com.technokratos.common.dto.tests.TestCasePublic;
 import com.technokratos.common.dto.tests.TestCaseResult;
 import com.technokratos.common.enums.ErrorType;
 import com.technokratos.common.enums.SolutionStatus;
@@ -27,7 +27,7 @@ public class DockerExecutionService {
     private final DockerManager dockerManager;
     private final LanguageExecutorFactory factory;
     private final ExecutorProperties executorProperties;
-    private  Semaphore containerSemaphore;
+    private Semaphore containerSemaphore;
 
     @PostConstruct
     public void init() {
@@ -57,12 +57,13 @@ public class DockerExecutionService {
 
             String fileName = executor.getSourceFileName();
 
-            containerId = dockerManager.createContainer(executor);
+            containerId = dockerManager.createContainer(executor, request.memoryLimitMb());
+
             log.info("Container created: {}", containerId);
 
             dockerManager.startContainer(containerId);
 
-            dockerManager.copyFileToContainer(containerId, fileName, request.code(), "/workspace");
+            dockerManager.writeFileViaExec(containerId, fileName, request.code());
             log.debug("Copied {} to container", fileName);
 
             long startTime = System.currentTimeMillis();
@@ -94,7 +95,7 @@ public class DockerExecutionService {
 
             List<TestCaseResult> testResults = new ArrayList<>();
 
-            for (TestCasePayload test : request.testCases()) {
+            for (TestCasePublic test : request.testCases()) {
                 log.debug("Running test {}, input='{}'", test.id(), test.input());
 
                 String[] runCommand = executor.getRunCommand();
@@ -102,7 +103,7 @@ public class DockerExecutionService {
                 ExecResult runResult = dockerManager.execWithStdin(
                         containerId,
                         test.input() + "\n",
-                        request.timeLimit(),
+                        Math.max(0, request.timeLimitMs()),
                         runCommand
                 );
 
@@ -184,10 +185,10 @@ public class DockerExecutionService {
         }
 
         if (testResults.stream().anyMatch(r -> r.errorType() == ErrorType.WRONG_ANSWER)) {
-            return SolutionStatus.PARTIALLY_COMPLETED;
+            return SolutionStatus.WRONG_ANSWER;
         }
 
         boolean allPassed = testResults.stream().allMatch(TestCaseResult::passed);
-        return allPassed ? SolutionStatus.COMPLETED : SolutionStatus.PARTIALLY_COMPLETED;
+        return allPassed ? SolutionStatus.COMPLETED : SolutionStatus.WRONG_ANSWER;
     }
 }

@@ -41,9 +41,7 @@ public class PythonExecutor implements LanguageExecutor {
     @Override
     public LanguageConfig getConfig() {
         return LanguageConfig.builder()
-                .memoryMB(256L)
                 .cpuCount(1L)
-                .timeout(10)
                 .workingDir("/workspace")
                 .build();
     }

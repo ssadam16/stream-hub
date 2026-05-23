@@ -1,14 +1,16 @@
 package com.technokratos.taskservice.model;
 
 import com.technokratos.common.enums.TaskDifficulty;
+import com.technokratos.common.enums.TaskStatus;
 import com.technokratos.common.enums.TaskTestType;
-import com.technokratos.taskservice.model.tests.ConsoleTestCase;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -23,6 +25,9 @@ public class Task extends BaseEntity {
     @Column(nullable = false)
     private String title;
 
+    @Column(nullable = false, unique = true)
+    private String slug;
+
     @Column(nullable = false, columnDefinition = "text")
     private String condition;
 
@@ -33,6 +38,11 @@ public class Task extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private TaskDifficulty difficulty;
 
+    @Column(nullable = false, length = 32)
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private TaskStatus status = TaskStatus.DRAFT;
+
     @Column(name = "external_id", unique = true)
     private String externalId;
 
@@ -40,11 +50,25 @@ public class Task extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private TaskTestType type;
 
-    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Column(nullable = false)
+    private Integer points;
+
+    @Column(name = "time_limit_ms", nullable = false)
+    private Integer timeLimitMs;
+
+    @Column(name = "memory_limit_mb", nullable = false)
+    private Integer memoryLimitMb;
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     @Builder.Default
-    private List<ConsoleTestCase> testCases = new ArrayList<>();
+    private List<TestCase> testCases = new ArrayList<>();
 
-    private Integer timeLimit;
-
-    private Integer memoryLimit;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "task_tags",
+            joinColumns = @JoinColumn(name = "task_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    @Builder.Default
+    private Set<Tag> tags = new HashSet<>();
 }

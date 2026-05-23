@@ -15,6 +15,5 @@ public record CodeExecutionResult(
         int totalTests,
         List<TestCaseResult> testResults,
         Long totalTimeMs,
-        //Long maxMemoryKb,
         String errorMessage              // для compile errors и internal errors
 ) {}

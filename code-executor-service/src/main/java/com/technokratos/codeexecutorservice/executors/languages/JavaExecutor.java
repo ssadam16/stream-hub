@@ -41,9 +41,7 @@ public class JavaExecutor implements LanguageExecutor {
     @Override
     public LanguageConfig getConfig() {
         return LanguageConfig.builder()
-                .memoryMB(512L)
                 .cpuCount(2L)
-                .timeout(30)
                 .workingDir("/workspace")
                 .build();
     }

@@ -20,7 +20,8 @@ public class SolutionSource {
     private String id;
 
     private UUID solutionId;               // связь с Postgres
-    private UUID taskId;                   // для поиска по задаче
+    private UUID taskId;
+    private UUID userId;
     private ProgrammingLanguage language;  // для фильтрации по языку
     private String code;                   // сам код
     private String codeHash;              // SHA-256

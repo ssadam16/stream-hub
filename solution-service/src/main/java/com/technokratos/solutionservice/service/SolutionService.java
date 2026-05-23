@@ -1,16 +1,18 @@
 package com.technokratos.solutionservice.service;
 
-import com.technokratos.common.dto.TaskResponse;
+import com.technokratos.common.dto.*;
+import com.technokratos.common.dto.tests.TestCaseFull;
+import com.technokratos.common.dto.tests.TestCasePublic;
 import com.technokratos.common.enums.SolutionStatus;
 import com.technokratos.common.events.CodeExecutionRequest;
 import com.technokratos.common.events.CodeExecutionResult;
 import com.technokratos.common.events.SolutionCompletedEvent;
+import com.technokratos.common.events.TaskSubmissionEvent;
 import com.technokratos.common.handler.exceptions.AccessDeniedException;
+import com.technokratos.common.handler.exceptions.SolutionNotFound;
+import com.technokratos.securityspringbootstarter.SecurityUtil;
 import com.technokratos.solutionservice.client.TaskClient;
 import com.technokratos.solutionservice.dto.SolutionRequest;
-import com.technokratos.solutionservice.dto.SolutionResponse;
-import com.technokratos.solutionservice.dto.SolutionResultResponse;
-import com.technokratos.common.handler.exceptions.SolutionNotFound;
 import com.technokratos.solutionservice.mapper.SolutionMapper;
 import com.technokratos.solutionservice.model.SolutionEntity;
 import com.technokratos.solutionservice.model.SolutionSource;
@@ -18,161 +20,254 @@ import com.technokratos.solutionservice.repository.MongoSolutionRepository;
 import com.technokratos.solutionservice.repository.SolutionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class SolutionService {
 
-    private final SolutionMapper mapper;
+    private static final String TOPIC_CODE_EXECUTION = "code-execution-topic";
+    private static final String TOPIC_TASK_STATS = "task.statistics.events";
+    private static final String TOPIC_PLAGIARISM = "solution-completed-events";
+    private final SecurityUtil securityUtil;
+
+    private static final Set<SolutionStatus> FINAL_STATUSES = Set.of(
+            SolutionStatus.COMPLETED,
+            SolutionStatus.WRONG_ANSWER,
+            SolutionStatus.TIME_LIMIT_EXCEEDED,
+            SolutionStatus.MEMORY_LIMIT_EXCEEDED,
+            SolutionStatus.COMPILATION_ERROR,
+            SolutionStatus.RUNTIME_ERROR,
+            SolutionStatus.INTERNAL_ERROR
+    );
+
     private final SolutionRepository solutionRepository;
-    private final KafkaTemplate<UUID, CodeExecutionRequest> kafkaTemplate;
-    private final KafkaTemplate<UUID, SolutionCompletedEvent> kafkaPlagiarismTemplate;
-    private final static String EXECUTION_CODE_KAFKA_TOPIC = "code-execution-topic";
-    private final static String PLAGIARISM_KAFKA_TOPIC = "solution-completed-events";
-    private final TaskClient taskClient;
     private final MongoSolutionRepository mongoSolutionRepository;
+    private final SolutionMapper solutionMapper;
+    private final TaskClient taskClient;
+
+    private final KafkaTemplate<UUID, CodeExecutionRequest> kafkaExecution;
+    private final KafkaTemplate<UUID, TaskSubmissionEvent> kafkaStats;
+    private final KafkaTemplate<UUID, SolutionCompletedEvent> kafkaPlagiarism;
 
     @Transactional
-    public UUID solveTask(SolutionRequest dto, UUID taskId, UUID userId) {
-        log.info("User {} has been solved task {}", userId, taskId);
-        SolutionEntity solution = mapper.toEntity(dto);
-        solution.setUserId(userId);
-        solution.setStatus(SolutionStatus.PENDING);
-        solution.setTaskId(taskId);
+    public UUID submit(SolutionRequest dto, UUID taskId, UUID userId) {
+        log.info("User {} submitting task {}", userId, taskId);
 
-        SolutionEntity saved = solutionRepository.save(solution);
-        MDC.put("solutionId", saved.getId().toString());
-        SolutionSource solutionToMongo = SolutionSource.builder()
-                .code(dto.code())
-                .solutionId(saved.getId())
+        TaskAdminView task = taskClient.getForExecution(taskId);
+
+        SolutionEntity solution = SolutionEntity.builder()
+                .userId(userId)
                 .taskId(taskId)
                 .language(dto.language())
-                .normalizedCode(normalize(dto.code()))
-                .codeHash(sha256(dto.code()))
+                .status(SolutionStatus.PROCESSING)
                 .build();
-
-        mongoSolutionRepository.save(solutionToMongo);
-
-        log.debug("Solution saved: taskId={}, solutionId={}", saved.getTaskId(), saved.getId());
-
+        SolutionEntity saved = solutionRepository.save(solution);
         UUID solutionId = saved.getId();
 
-        TaskResponse task = taskClient.getTask(taskId);
-        log.info("Task from task-service: {}", task.id());
-        CodeExecutionRequest request = getCodeExecutionRequest(dto, userId , taskId, solutionId, task);
-        kafkaTemplate.send(EXECUTION_CODE_KAFKA_TOPIC, saved.getId(), request);
-        log.info("Send code-execution event to {} topic", EXECUTION_CODE_KAFKA_TOPIC);
+        mongoSolutionRepository.save(SolutionSource.builder()
+                .solutionId(solutionId)
+                .taskId(taskId)
+                .userId(userId)
+                .language(dto.language())
+                .code(dto.code())
+                .codeHash(sha256(dto.code()))
+                .normalizedCode(normalize(dto.code()))
+                .build());
 
+        kafkaExecution.send(TOPIC_CODE_EXECUTION, solutionId,
+                CodeExecutionRequest.builder()
+                        .solutionId(solutionId)
+                        .taskId(taskId)
+                        .userId(userId)
+                        .language(dto.language())
+                        .code(dto.code())
+                        .timeLimitMs(task.timeLimitMs())
+                        .memoryLimitMb(task.memoryLimitMb())
+                        .testCases(toExecutorTests(task.testCases()))
+                        .build());
+
+        log.info("Solution {} submitted and execution requested", solutionId);
         return solutionId;
     }
 
-    private String sha256(String code) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(code.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder();
-            for (byte b : hash) {
-                hex.append(String.format("%02x", b));
-            }
-            return hex.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private String normalize(String code) {
-        return code
-                .replaceAll("//[^\n]*", "")           // убрать // комменты
-                .replaceAll("/\\*.*?\\*/", "")         // убрать /* */ комменты
-                .replaceAll("#[^\n]*", "")             // убрать # комменты (Python/C++)
-                .replaceAll("\\s+", " ")               // нормализовать пробелы
-                .trim();
-    }
-
-    public SolutionResultResponse getResult(UUID solutionId) {
-        SolutionEntity solution = solutionRepository.findById(solutionId)
-                .orElseThrow(() -> new SolutionNotFound(solutionId));
-
-        return mapper.toResponse(solution);
-    }
-
-    private CodeExecutionRequest getCodeExecutionRequest(SolutionRequest dto, UUID userId, UUID taskId, UUID solutionId, TaskResponse task) {
-        return CodeExecutionRequest.builder()
-                .taskId(taskId)
-                .solutionId(solutionId)
-                .language(dto.language())
-                .code(dto.code())
-                .userId(userId)
-                .memoryLimit(task.memoryLimit())
-                .testCases(task.testCases())
-                .timeLimit(task.timeLimit())
-                .build();
-    }
-
     @KafkaListener(topics = "code-execution-results", groupId = "${spring.kafka.consumer.group-id}")
+    @Transactional
     public void onExecutionResult(CodeExecutionResult result) {
         UUID solutionId = result.solutionId();
+        log.info("Got execution result solution={} status={}", solutionId, result.status());
 
         SolutionEntity solution = solutionRepository.findById(solutionId)
                 .orElseThrow(() -> new SolutionNotFound(solutionId));
 
         solution.setStatus(result.status());
-        solution.setTotalTests(result.totalTests());
         solution.setPassedTests(result.passedTests());
+        solution.setTotalTests(result.totalTests());
         solution.setTotalTimeMs(result.totalTimeMs());
         solution.setTestResults(result.testResults());
-
         solutionRepository.save(solution);
-        log.info("Solution {} updated with status: {}", result.solutionId(), result.status());
+
+
+
+        if (FINAL_STATUSES.contains(result.status())) {
+            kafkaStats.send(TOPIC_TASK_STATS, solution.getTaskId(),
+                    TaskSubmissionEvent.builder()
+                            .solutionId(solutionId)
+                            .taskId(solution.getTaskId())
+                            .userId(solution.getUserId())
+                            .accepted(result.status() == SolutionStatus.COMPLETED)
+                            .timestamp(Instant.now())
+                            .build());
+        }
 
         if (result.status() == SolutionStatus.COMPLETED) {
-            kafkaPlagiarismTemplate.send(
-                    PLAGIARISM_KAFKA_TOPIC,
-                    result.solutionId(),
+            kafkaPlagiarism.send(TOPIC_PLAGIARISM, solutionId,
                     SolutionCompletedEvent.builder()
-                            .solutionId(result.solutionId())
+                            .solutionId(solutionId)
                             .taskId(solution.getTaskId())
                             .language(solution.getLanguage())
-                            .build()
-            );
-            log.info("Sent solution {} to plagiarism check", result.solutionId());
+                            .build());
         }
     }
 
-    public Page<SolutionResponse> getAll(Pageable pageable) {
-        return mapper.toResponsePage(solutionRepository.findAll(pageable));
+    @Transactional(readOnly = true)
+    public SolutionView getById(UUID solutionId, Jwt jwt) {
+        SolutionEntity s = solutionRepository.findById(solutionId)
+                .orElseThrow(() -> new SolutionNotFound(solutionId));
+
+        deniedAccessIfNotResourceOwnerOrAdmin(jwt, s);
+
+        String code = mongoSolutionRepository.findBySolutionIdAndUserId(solutionId, s.getUserId())
+                .map(SolutionSource::getCode)
+                .orElse(null);
+        return solutionMapper.toView(s, code);
     }
 
-    public SolutionResponse getOne(UUID id) {
-        SolutionEntity solution = solutionRepository.findById(id)
-                .orElseThrow(() -> new SolutionNotFound(id));
+    @Transactional(readOnly = true)
+    public PageResponse<SolutionShortView> listMine(UUID userId, Pageable pageable) {
+        Page<SolutionShortView> content = solutionRepository.findAllByUserId(userId, pageable)
+                .map(solutionMapper::toShortView);
 
-        return mapper.toSolutionResponse(solution);
+        return new PageResponse<>(
+                content.getContent(),
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                content.getTotalElements(),
+                content.getTotalPages()
+        );
     }
 
-    public void deleteOne(UUID id, UUID userId, String roles) {
-        SolutionEntity solution = solutionRepository.findById(id)
+    @Transactional
+    public void delete(UUID id, Jwt jwt) {
+        SolutionEntity s = solutionRepository.findById(id)
                 .orElseThrow(() -> new SolutionNotFound(id));
 
-        boolean isAdmin = roles.contains("ADMIN");
-
-        if (!isAdmin && !solution.getUserId().equals(userId)) {
-            throw new AccessDeniedException("You can only delete your own solutions");
-        }
+        deniedAccessIfNotResourceOwnerOrAdmin(jwt, s);
 
         solutionRepository.deleteById(id);
+
+        mongoSolutionRepository.findBySolutionIdAndUserId(id, s.getUserId())
+                .ifPresent(mongoSolutionRepository::delete);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<CompletedTaskView> getMyCompletedTasks(UUID userId, Pageable pageable) {
+
+        Page<UserTaskSummary> summaries = solutionRepository.findUserTaskSummaries(userId, pageable);
+
+        if (summaries.isEmpty()) {
+            return new PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0, 0);
+        }
+
+        List<UUID> taskIds = summaries.getContent().stream()
+                .map(UserTaskSummary::taskId).toList();
+
+        Map<UUID, TaskShortView> taskMap = taskClient.getBatch(taskIds);
+
+        List<SolutionEntity> all = solutionRepository.findAllByUserIdAndTaskIdIn(userId, taskIds);
+
+        Map<UUID, List<SolutionShortView>> byTaskId = all.stream()
+                .collect(Collectors.groupingBy(
+                        SolutionEntity::getTaskId,
+                        Collectors.mapping(solutionMapper::toShortView, Collectors.toList())));
+
+        List<CompletedTaskView> content = summaries.getContent().stream()
+                .map(s -> CompletedTaskView.builder()
+                        .task(taskMap.get(s.taskId()))
+                        .solutions(byTaskId.getOrDefault(s.taskId(), List.of()))
+                        .lastSolvedAt(s.lastSolvedAt())
+                        .attemptsCount((int) s.attemptsCount())
+                        .build())
+                .toList();
+
+        return new PageResponse<>(
+                content,
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                summaries.getTotalElements(),
+                summaries.getTotalPages()
+        );
+    }
+
+    private static List<TestCasePublic> toExecutorTests(List<TestCaseFull> cases) {
+        if (cases == null || cases.isEmpty()) {
+            return List.of();
+        }
+        return cases.stream()
+                .map(c -> TestCasePublic.builder()
+                        .id(c.id())
+                        .input(c.input())
+                        .expectedOutput(c.expectedOutput())
+                        .build())
+                .toList();
+    }
+
+    private static String sha256(String s) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(s.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String normalize(String code) {
+        return code
+                .replaceAll("//[^\n]*", "")
+                .replaceAll("/\\*.*?\\*/", "")
+                .replaceAll("#[^\n]*", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private void deniedAccessIfNotResourceOwnerOrAdmin(Jwt jwt, SolutionEntity s) {
+        if (!securityUtil.isOwner(jwt, s.getUserId()) && !securityUtil.isAdmin(jwt)) {
+            throw new AccessDeniedException("You do not have permission to access this resource");
+        }
     }
 }

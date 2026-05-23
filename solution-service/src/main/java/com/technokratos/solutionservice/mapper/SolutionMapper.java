@@ -1,25 +1,38 @@
 package com.technokratos.solutionservice.mapper;
 
-import com.technokratos.solutionservice.dto.SolutionRequest;
-import com.technokratos.solutionservice.dto.SolutionResponse;
-import com.technokratos.solutionservice.dto.SolutionResultResponse;
+import com.technokratos.common.dto.SolutionShortView;
+import com.technokratos.common.dto.SolutionView;
 import com.technokratos.solutionservice.model.SolutionEntity;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingConstants;
-import org.mapstruct.ReportingPolicy;
-import org.springframework.data.domain.Page;
+import org.springframework.stereotype.Component;
 
-@Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE, componentModel = MappingConstants.ComponentModel.SPRING)
-public interface SolutionMapper {
-    SolutionEntity toEntity(SolutionRequest solutionRequest);
+@Component
+public class SolutionMapper {
 
-    SolutionResponse toSolutionResponse(SolutionEntity solutionEntity);
-
-    default Page<SolutionResponse> toResponsePage(Page<SolutionEntity> page) {
-        return page.map(this::toSolutionResponse);
+    public SolutionView toView(SolutionEntity s, String code) {
+        return SolutionView.builder()
+                .id(s.getId())
+                .userId(s.getUserId())
+                .taskId(s.getTaskId())
+                .language(s.getLanguage())
+                .status(s.getStatus())
+                .passedTests(s.getPassedTests())
+                .totalTests(s.getTotalTests())
+                .totalTimeMs(s.getTotalTimeMs())
+                .testResults(s.getTestResults())
+                .code(code)
+                .createdAt(s.getCreatedAt())
+                .updatedAt(s.getUpdatedAt())
+                .build();
     }
 
-    @Mapping(target = "solutionId", source = "id")
-    SolutionResultResponse toResponse(SolutionEntity entity);
+    public SolutionShortView toShortView(SolutionEntity s) {
+        return SolutionShortView.builder()
+                .id(s.getId())
+                .taskId(s.getTaskId())
+                .language(s.getLanguage())
+                .status(s.getStatus())
+                .createdAt(s.getCreatedAt())
+                .updatedAt(s.getUpdatedAt())
+                .build();
+    }
 }

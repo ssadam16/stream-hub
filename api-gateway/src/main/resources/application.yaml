@@ -1,0 +1,131 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  devtools:
+    restart:
+      poll-interval: 2s
+      quiet-period: 1s
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            provider: keycloak
+            client-id: ${KEYCLOAK_CLIENT_ID:gateway-client}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
+            scope: openid, profile, email
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_SERVICE_URI:http://localhost:8090}/realms/stream-hub
+
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: solution-service
+              uri: ${SOLUTION_SERVICE_URI:http://localhost:8084}
+              predicates:
+                - Path=/api/v1/solutions/**
+              filters:
+                - TokenRelay=
+
+            - id: task-service
+              uri: ${TASK_SERVICE_URI:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/tasks/**
+              filters:
+                - TokenRelay=
+
+            - id: plagiarism-service
+              uri: ${PLAGIARISM_SERVICE_URI:http://localhost:8086}
+              predicates:
+                - Path=/api/v1/plagiarism/**
+              filters:
+                - TokenRelay=
+
+#            - id: task-service
+#              uri: ${TASK_SERVICE_URI:http://localhost:8083}
+#              predicates:
+#                - Path=/internal/v1/tasks/**
+#              filters:
+#                - TokenRelay=
+
+            - id: task-service-admin
+              uri: ${TASK_SERVICE_URI:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/admin/tasks/**
+              filters:
+                - TokenRelay=
+
+            - id: tags
+              uri: ${TASK_SERVICE_URI:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/tags/**
+              filters:
+                - TokenRelay=
+
+            - id: task-service-docs
+              uri: ${TASK_SERVICE_URI:http://localhost:8083}
+              predicates:
+                - Path=/v3/api-docs/task-service
+              filters:
+                - RewritePath=/v3/api-docs/task-service, /v3/api-docs
+
+            - id: solution-service-docs
+              uri: ${SOLUTION_SERVICE_URI:http://localhost:8084}
+              predicates:
+                - Path=/v3/api-docs/solution-service
+              filters:
+                - RewritePath=/v3/api-docs/solution-service, /v3/api-docs
+
+            - id: plagiarism-service-docs
+              uri: ${PLAGIARISM_SERVICE_URI:http://localhost:8086}
+              predicates:
+                - Path=/v3/api-docs/plagiarism-service
+              filters:
+                - RewritePath=/v3/api-docs/plagiarism-service, /v3/api-docs
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: task-service
+        url: /v3/api-docs/task-service
+      - name: solution-service
+        url: /v3/api-docs/solution-service
+      - name: plagiarism-service
+        url: /v3/api-docs/plagiarism-service
+  api-docs:
+    enabled: true
+
+otel:
+  exporter:
+    otlp:
+      endpoint: http://otel-collector:4318
+  resource:
+    attributes:
+      service.name: ${spring.application.name}
+  sdk:
+    disabled: true
+
+logging:
+  level:
+    org.springframework.security: INFO
+    com.technokratos.apigateway: DEBUG

@@ -10,8 +10,15 @@ docker:
     go: golang:1.22-alpine
 
 spring:
+  profiles:
+    active: dev
   application:
     name: code-executor-service
+  devtools:
+    restart:
+      poll-interval: 2s
+      quiet-period: 1s
+
 
   kafka:
     bootstrap-servers: ${BOOTSTRAP_SERVERS:localhost:9092,localhost:9094,localhost:9096}
@@ -67,8 +74,7 @@ otel:
 
 services:
   task-service:
-    uri: ${TASK_SERVICE_URI:http://localhost:8083/api}
+    uri: ${TASK_SERVICE_URI:http://localhost:8083}
 
 server:
-  port:
-    8085
+  port: 8085

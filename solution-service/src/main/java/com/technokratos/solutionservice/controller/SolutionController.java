@@ -1,66 +1,54 @@
 package com.technokratos.solutionservice.controller;
 
-
+import com.technokratos.common.dto.CompletedTaskView;
+import com.technokratos.common.dto.PageResponse;
+import com.technokratos.common.dto.SolutionShortView;
+import com.technokratos.common.dto.SolutionView;
+import com.technokratos.solutionservice.api.SolutionApi;
 import com.technokratos.solutionservice.dto.SolutionRequest;
-import com.technokratos.solutionservice.dto.SolutionResponse;
-import com.technokratos.solutionservice.dto.SolutionResultResponse;
-import com.technokratos.solutionservice.model.SolutionEntity;
 import com.technokratos.solutionservice.service.SolutionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/solutions")
 @RequiredArgsConstructor
-public class SolutionController {
+public class SolutionController implements SolutionApi {
 
-    private final SolutionService solutionService;
+    private final SolutionService service;
 
-    @GetMapping
-    @ResponseStatus(HttpStatus.OK)
-    public Page<SolutionResponse> getAll(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        return solutionService.getAll(PageRequest.of(page, size));
+    @Override
+    public UUID submit(SolutionRequest dto, UUID taskId, Jwt jwt) {
+        return service.submit(dto, taskId, UUID.fromString(jwt.getSubject()));
     }
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteOne(
-            @PathVariable UUID id,
-            @RequestHeader("X-User-Id") UUID userId,
-            @RequestHeader("X-User-Roles") String roles
-    ) {
-        solutionService.deleteOne(id, userId, roles);
+    @Override
+    public PageResponse<SolutionShortView> listMine(Pageable pageable, Jwt jwt) {
+        return service.listMine(UUID.fromString(jwt.getSubject()), pageable);
     }
 
-    @GetMapping("/{id}")
-    public SolutionResponse getOne(@PathVariable UUID id) {
-        return solutionService.getOne(id);
+    @Override
+    public PageResponse<CompletedTaskView> myCompleted(Pageable pageable, Jwt jwt) {
+        return service.getMyCompletedTasks(UUID.fromString(jwt.getSubject()), pageable);
     }
 
-    @PostMapping("/tasks/{taskId}/solve")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public UUID solveTask(
-            @RequestBody @Valid SolutionRequest dto,
-            @PathVariable UUID taskId,
-            @RequestHeader("X-User-Id") UUID userId
-    ) {
-        return solutionService.solveTask(dto, taskId, userId);
+    @Override
+    public SolutionView getById(UUID id, Jwt jwt) {
+        return service.getById(id, jwt);
     }
 
-    @GetMapping("/{id}/result")
-    public SolutionResultResponse getResult(@PathVariable UUID id) {
-        return solutionService.getResult(id);
+    @Override
+    public void delete(UUID solutionId, Jwt jwt) {
+        service.delete(solutionId, jwt);
     }
-
+    //getAllCompletedSolutionsByTaskId
 }
-

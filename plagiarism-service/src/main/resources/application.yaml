@@ -1,6 +1,16 @@
 spring:
   application:
     name: plagiarism-service
+  devtools:
+    restart:
+      poll-interval: 2s
+      quiet-period: 1s
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/stream-hub}     # для проверки iss в токене
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8090/realms/stream-hub/protocol/openid-connect/certs}   # для скачивания публичного ключа
 
   kafka:
     bootstrap-servers: ${BOOTSTRAP_SERVERS:localhost:9092,localhost:9094,localhost:9096}
@@ -38,6 +48,25 @@ management:
     web:
       exposure:
         include: health,prometheus,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+
+
+security:
+  starter:
+    permit-all:
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /v3/api-docs/**
+      - /webjars/**
+      - /swagger-resources/**
+      - /actuator/**
+
+
 
 otel:
   exporter:

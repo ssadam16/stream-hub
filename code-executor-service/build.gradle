@@ -37,24 +37,18 @@ dependencyManagement {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-
     implementation 'org.springframework.boot:spring-boot-starter-web'
-
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'org.flywaydb:flyway-core'
-    runtimeOnly 'org.postgresql:postgresql'
 
-
-    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.15"
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
     implementation 'org.springframework.kafka:spring-kafka'
     implementation 'org.springframework.retry:spring-retry'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-    compileOnly 'org.mapstruct:mapstruct:1.6.0'
-    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.0'
-    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
 
     implementation ('com.github.docker-java:docker-java-core:3.7.0') {
         exclude group: 'com.github.docker-java', module: 'docker-java-transport-jersey'

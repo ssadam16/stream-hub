@@ -9,9 +9,7 @@ import lombok.Setter;
 @Setter
 @Builder
 public class LanguageConfig {
-    private Long memoryMB;
     private Long cpuCount;
-    private Integer timeout;
     private String workingDir;
     private Long pidsLimit;
 }

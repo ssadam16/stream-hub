@@ -19,6 +19,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -80,13 +81,13 @@ public class DockerManager {
         }
     }
 
-    public String createContainer(LanguageExecutor executor) {
+    public String createContainer(LanguageExecutor executor, long memoryMb) {
         ensureImageExists(executor.getImage());
 
         LanguageConfig config = executor.getConfig();
         String containerWorkDir = config.getWorkingDir();
 
-        long memoryBytes = config.getMemoryMB() * 1024L * 1024L;
+        long memoryBytes = memoryMb  * 1024L * 1024L;
 
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withMemory(memoryBytes)
@@ -96,8 +97,9 @@ public class DockerManager {
                 .withCapDrop(Capability.ALL)
                 .withReadonlyRootfs(true)
                 .withTmpFs(Map.of(
-                        "/tmp",       "rw,nosuid,size=64m",
-                        "/workspace", "rw,nosuid,size=32m"
+                        "/tmp",           "rw,nosuid,size=64m,exec",
+                        "/workspace",     "rw,nosuid,size=32m,exec",
+                        "/root/.cache",   "rw,nosuid,size=128m,exec"
                 ))
                 .withSecurityOpts(List.of("no-new-privileges:true"))
                 .withNetworkMode("none");
@@ -112,7 +114,6 @@ public class DockerManager {
                         "stream-hub.executor", "true",
                         "created_by", "code-executor-service"
                 ))
-                .withUser("1000:1000")
                 .exec();
 
         log.info("Created container {} for language {}", container.getId(), executor.getLanguage());
@@ -120,34 +121,20 @@ public class DockerManager {
         return container.getId();
     }
 
-    public void copyFileToContainer(String containerId, String fileName, String code, String remotePath) {
-        try {
-            byte[] fileBytes = code.getBytes(StandardCharsets.UTF_8);
+    public void writeFileViaExec(String containerId, String fileName, String code) {
+        String encoded = Base64.getEncoder().encodeToString(code.getBytes(StandardCharsets.UTF_8));
 
-            ByteArrayOutputStream tarStream = new ByteArrayOutputStream();
-            try (TarArchiveOutputStream tar = new TarArchiveOutputStream(tarStream)) {
-                tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+        ExecResult result = execCommand(
+                containerId,
+                "sh", "-c",
+                "echo '%s' | base64 -d > /workspace/%s".formatted(encoded, fileName)
+        );
 
-                TarArchiveEntry entry = new TarArchiveEntry(fileName);
-                entry.setSize(fileBytes.length);
-                entry.setMode(420); // rw-r--r--
-
-                tar.putArchiveEntry(entry);
-                tar.write(fileBytes);
-                tar.closeArchiveEntry();
-            }
-
-            dockerClient.copyArchiveToContainerCmd(containerId)
-                    .withTarInputStream(new ByteArrayInputStream(tarStream.toByteArray()))
-                    .withRemotePath(remotePath)
-                    .exec();
-
-            log.debug("Copied file {} to container {} at {}", fileName, containerId, remotePath);
-
-        } catch (IOException e) {
-            log.error("Failed to copy file to container", e);
-            throw new RuntimeException("Failed to copy file to container", e);
+        if (result.exitCode() != 0) {
+            throw new RuntimeException("Failed to write source file: " + result.stderr());
         }
+
+        log.debug("Wrote file {} to container {} via exec", fileName, containerId);
     }
 
     public ExecResult execCommand(String containerId, String... command) {
@@ -205,7 +192,7 @@ public class DockerManager {
         }
     }
 
-    public ExecResult execWithStdin(String containerId, String input, int timeoutSeconds, String... command) {
+    public ExecResult execWithStdin(String containerId, String input, int timeoutMs, String... command) {
         try {
             // Экранируем input для shell
             String escapedInput = input.replace("'", "'\\''");
@@ -245,11 +232,11 @@ public class DockerManager {
                         }
                     });
 
-            boolean finished = callback.awaitCompletion(timeoutSeconds, TimeUnit.SECONDS);
+            boolean finished = callback.awaitCompletion(timeoutMs, TimeUnit.MILLISECONDS);
             long elapsedMs = System.currentTimeMillis() - startTime;
 
             if (!finished) {
-                log.warn("Exec command timed out after {} seconds", timeoutSeconds);
+                log.warn("Exec command timed out after {} seconds", timeoutMs);
                 return new ExecResult("", "Timeout", -1, elapsedMs, true);
             }
 

@@ -22,29 +22,8 @@ subprojects {
         sourceCompatibility = JavaLanguageVersion.of(21)
     }
 
-    if (it.name != 'common') {
-        apply plugin: 'org.springframework.boot'
-
-        bootJar {
-            enabled = true
-            archiveClassifier = ''
-        }
-    }
-
     repositories {
         mavenCentral()
-    }
-
-    jar {
-        enabled = false
-    }
-
-    dependencies {
-        implementation 'net.logstash.logback:logstash-logback-encoder:8.0'
-        implementation 'io.micrometer:micrometer-tracing-bridge-otel'
-        implementation 'io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter'
-        implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
-        implementation 'io.micrometer:micrometer-registry-prometheus'
     }
 
     dependencyManagement {
@@ -57,5 +36,27 @@ subprojects {
 
     tasks.named('test') {
         useJUnitPlatform()
+    }
+}
+
+// только для сервисов
+configure(subprojects.findAll { it.name != 'common' && it.name != 'security-spring-boot-starter' }) {
+    apply plugin: 'org.springframework.boot'
+
+    bootJar {
+        enabled = true
+        archiveClassifier = ''
+    }
+
+    jar {
+        enabled = false
+    }
+
+    dependencies {
+        implementation 'net.logstash.logback:logstash-logback-encoder:8.0'
+        implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+        implementation 'io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter'
+        implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+        implementation 'io.micrometer:micrometer-registry-prometheus'
     }
 }

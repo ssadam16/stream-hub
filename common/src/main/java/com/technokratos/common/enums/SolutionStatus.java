@@ -7,12 +7,12 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum SolutionStatus {
-    PENDING("Решение ожидает выполнения"),
+    ACCEPTED("Решение ожидает выполнения"),
     PROCESSING("Решение выполняется"),
 
     // Успешные статусы
     COMPLETED("Решение выполнено успешно"),
-    PARTIALLY_COMPLETED("Решение выполнено частично (не все тесты пройдены)"),
+    WRONG_ANSWER("Решение выполнено частично (не все тесты пройдены)"),
 
     // Ошибки выполнения
     COMPILATION_ERROR("Ошибка компиляции"),

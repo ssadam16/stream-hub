@@ -2,10 +2,23 @@ server:
   port: 8083
 
 spring:
+  devtools:
+    restart:
+      poll-interval: 2s
+      quiet-period: 1s
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/stream-hub}     # для проверки iss в токене
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8090/realms/stream-hub/protocol/openid-connect/certs}   # для скачивания публичного ключа
+
+
   application:
     name: task-service
   main:
-      allow-bean-definition-overriding: true
+    allow-bean-definition-overriding: true
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/task-service-db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
@@ -22,6 +35,32 @@ spring:
     baseline-on-migrate: true
     schemas: public
     default-schema: public
+  kafka:
+    bootstrap-servers: ${BOOTSTRAP_SERVERS:localhost:9092,localhost:9094,localhost:9096}
+    consumer:
+      group-id: task-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.UUIDDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.technokratos.common.events,com.technokratos.common.dto"
+        spring.json.use.type.headers: true
+        spring.json.value.default.type: com.technokratos.common.events.TaskSubmissionEvent
+
+services:
+  solution-service:
+    uri: ${SOLUTION_SERVICE_URI:http://localhost:8084}
+
+security:
+  starter:
+    permit-all:
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /v3/api-docs/**
+      - /webjars/**
+      - /swagger-resources/**
+      - /actuator/**
+
 
 management:
   tracing:
@@ -31,6 +70,13 @@ management:
     web:
       exposure:
         include: health,prometheus,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+
 
 otel:
   exporter:

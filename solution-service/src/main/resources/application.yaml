@@ -2,6 +2,27 @@ server:
   port: 8084
 
 spring:
+  devtools:
+    restart:
+      poll-interval: 2s
+      quiet-period: 1s
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: ${SOLUTION_SERVICE_CLIENT_ID:solution-service-client}
+            client-secret: ${SOLUTION_SERVICE_CLIENT_SECRET:ZUrDsvTVNLpZGLRr1FtWwtdPFshBYJoT}
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          keycloak:
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8090/realms/stream-hub/protocol/openid-connect/token}
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/stream-hub}     # для проверки iss в токене
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8090/realms/stream-hub/protocol/openid-connect/certs}   # для скачивания публичного ключа
+
   application:
     name: solution-service
 
@@ -41,6 +62,17 @@ logging:
   level:
     com.technokratos.solutionservice: DEBUG
 
+security:
+  starter:
+    permit-all:
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /v3/api-docs/**
+      - /webjars/**
+      - /swagger-resources/**
+      - /actuator/**
+
+
 management:
   tracing:
     sampling:
@@ -51,6 +83,8 @@ management:
         include: health,prometheus,info
 
 otel:
+  sdk:
+    disabled: true
   exporter:
     otlp:
       endpoint: http://otel-collector:4318
@@ -58,4 +92,4 @@ otel:
     attributes:
       service.name: ${spring.application.name}
 
-task-service-uri: ${TASK_SERVICE_URI:http://localhost:8083/api/tasks}
+task-service-uri: ${TASK_SERVICE_URI:http://localhost:8083}

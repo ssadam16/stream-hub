@@ -1,7 +1,7 @@
 {
-  "id": "myrealm",
-  "realm": "myrealm",
-  "displayName": "My Realm",
+  "id": "stream-hub",
+  "realm": "stream-hub",
+  "displayName": "stream-hub",
   "enabled": true,
   "sslRequired": "none",
   "registrationAllowed": false,
@@ -12,11 +12,11 @@
   "roles": {
     "realm": [
       {
-        "name": "ADMIN",
+        "name": "stream_hub.admin",
         "description": "Administrator role"
       },
       {
-        "name": "USER",
+        "name": "stream_hub.user",
         "description": "User role"
       }
     ]
