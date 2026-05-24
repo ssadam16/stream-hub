@@ -3,6 +3,7 @@ package com.technokratos.solutionservice.model;
 import com.technokratos.common.dto.tests.TestCaseResult;
 import com.technokratos.common.enums.ProgrammingLanguage;
 import com.technokratos.common.enums.SolutionStatus;
+import com.technokratos.common.enums.TaskDifficulty;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -38,6 +39,13 @@ public class SolutionEntity extends BaseEntity {
     @Enumerated(value = EnumType.STRING)
     @Column(name = "status", length = 50)
     private SolutionStatus status;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private TaskDifficulty difficulty;
+
+    @Column(nullable = false)
+    private Integer points;
 
     @Column(name = "passed_tests")
     private Long passedTests;

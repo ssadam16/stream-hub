@@ -37,6 +37,26 @@ services:
     networks:
       - streamhub-network
 
+
+  user-service-postgres:
+    container_name: user-service-postgres
+    image: postgres:latest
+    restart: on-failure
+    volumes:
+      - user-service-postgres-data:/var/lib/postgresql
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: user-service-db
+    healthcheck:
+      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    networks:
+      - streamhub-network
+
   keycloak-postgres:
     image: postgres:latest
     container_name: keycloak-postgres
@@ -257,6 +277,16 @@ services:
     networks:
       - streamhub-network
 
+  user-service:
+    container_name: user-service
+    build:
+      context: .
+      dockerfile: user-service-Dockerfile.dev
+    environment:
+      OTEL_HOST: otel-collector
+    networks:
+      - streamhub-network
+
   api-gateway:
     container_name: api-gateway
     build:
@@ -265,12 +295,9 @@ services:
     ports:
       - "8080:8080"  # единственная точка входа для клиентов
     depends_on:
-      user-service:
-        condition: service_started
       keycloak:
         condition: service_healthy
     environment:
-      USER_SERVICE_URI: http://user-service:8081
       TASK_SERVICE_URI: http://task-service:8083
       PLAGIARISM_SERVICE_URI: http://plagiarism-service:8086
       SOLUTION_SERVICE_URI: http://solution-service:8084
@@ -361,6 +388,7 @@ volumes:
   grafana-data:
   tempo-data:
   prometheus-data:
+  user-service-postgres-data:
 
 networks:
   streamhub-network:

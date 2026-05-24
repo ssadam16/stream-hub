@@ -1,5 +1,7 @@
 package com.technokratos.common.events;
 
+import com.technokratos.common.enums.ProgrammingLanguage;
+import com.technokratos.common.enums.TaskDifficulty;
 import lombok.Builder;
 
 import java.time.Instant;
@@ -17,6 +19,9 @@ public record TaskSubmissionEvent(
         UUID solutionId,
         UUID taskId,
         UUID userId,
-        boolean accepted,
-        Instant timestamp
+        boolean completed,
+        Instant timestamp,
+        int points,
+        ProgrammingLanguage language,
+        TaskDifficulty difficulty
 ) {}

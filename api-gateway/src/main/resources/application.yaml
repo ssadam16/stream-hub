@@ -52,12 +52,12 @@ spring:
               filters:
                 - TokenRelay=
 
-#            - id: task-service
-#              uri: ${TASK_SERVICE_URI:http://localhost:8083}
-#              predicates:
-#                - Path=/internal/v1/tasks/**
-#              filters:
-#                - TokenRelay=
+            - id: user-service
+              uri: ${USER_SERVICE_URI:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/statistics/**
+              filters:
+                - TokenRelay=
 
             - id: task-service-admin
               uri: ${TASK_SERVICE_URI:http://localhost:8083}
@@ -79,6 +79,13 @@ spring:
                 - Path=/v3/api-docs/task-service
               filters:
                 - RewritePath=/v3/api-docs/task-service, /v3/api-docs
+
+            - id: user-service-docs
+              uri: ${USER_SERVICE_URI:http://localhost:8081}
+              predicates:
+                - Path=/v3/api-docs/user-service
+              filters:
+                - RewritePath=/v3/api-docs/user-service, /v3/api-docs
 
             - id: solution-service-docs
               uri: ${SOLUTION_SERVICE_URI:http://localhost:8084}
@@ -108,6 +115,8 @@ springdoc:
     urls:
       - name: task-service
         url: /v3/api-docs/task-service
+      - name: user-service
+        url: /v3/api-docs/user-service
       - name: solution-service
         url: /v3/api-docs/solution-service
       - name: plagiarism-service

@@ -45,7 +45,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ExceptionMessage handeAllErrors(Exception e) {
+    public ExceptionMessage handleAllErrors(Exception e) {
         return ExceptionMessage.builder()
                 .message(e.getMessage())
                 .exceptionName(e.getClass().getSimpleName())
