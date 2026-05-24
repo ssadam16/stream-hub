@@ -55,7 +55,7 @@ spring:
             - id: user-service
               uri: ${USER_SERVICE_URI:http://localhost:8081}
               predicates:
-                - Path=/api/v1/statistics
+                - Path=/api/v1/statistics/**
               filters:
                 - TokenRelay=
 
