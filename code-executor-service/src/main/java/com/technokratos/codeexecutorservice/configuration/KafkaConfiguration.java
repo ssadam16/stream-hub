@@ -1,5 +1,6 @@
 package com.technokratos.codeexecutorservice.configuration;
 
+import com.technokratos.common.topics.KafkaTopics;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.config.TopicConfig;
 import org.springframework.context.annotation.Bean;
@@ -23,7 +24,7 @@ public class KafkaConfiguration {
 
     @Bean
     public NewTopic codeExecutionResultTopic() {
-        return TopicBuilder.name("code-execution-results")
+        return TopicBuilder.name(KafkaTopics.TOPIC_EXECUTION_RESULTS)
                 .partitions(3)
                 .replicas(3)
                 .config(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, "2")
@@ -38,8 +39,7 @@ public class KafkaConfiguration {
                 .exponentialBackoff(1000, 5, 30000)
                 .dltHandlerMethod("codeExecutionService", "handleDlqMessage")
                 .includeTopics(List.of("code-execution-topic"))
-                .dltSuffix("-dlq")
-                .retryTopicSuffix("-retry")
+                .retryTopicSuffix(".retry")
                 .create(template);
     }
 

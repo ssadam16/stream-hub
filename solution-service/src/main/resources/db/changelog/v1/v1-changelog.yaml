@@ -9,5 +9,8 @@ databaseChangeLog:
       file: 003-delete-language-constraint.yaml
       relativeToChangelogFile: true
   - include:
-      file: 004-drop-columg-code.yaml
+      file: 004-drop-column-code.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 005-add-difficulty-and-point-columns.yaml
       relativeToChangelogFile: true

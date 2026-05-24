@@ -10,6 +10,7 @@ import com.technokratos.common.events.SolutionCompletedEvent;
 import com.technokratos.common.events.TaskSubmissionEvent;
 import com.technokratos.common.handler.exceptions.AccessDeniedException;
 import com.technokratos.common.handler.exceptions.SolutionNotFound;
+import com.technokratos.common.topics.KafkaTopics;
 import com.technokratos.securityspringbootstarter.SecurityUtil;
 import com.technokratos.solutionservice.client.TaskClient;
 import com.technokratos.solutionservice.dto.SolutionRequest;
@@ -46,9 +47,6 @@ import java.util.stream.Collectors;
 @Service
 public class SolutionService {
 
-    private static final String TOPIC_CODE_EXECUTION = "code-execution-topic";
-    private static final String TOPIC_TASK_STATS = "task.statistics.events";
-    private static final String TOPIC_PLAGIARISM = "solution-completed-events";
     private final SecurityUtil securityUtil;
 
     private static final Set<SolutionStatus> FINAL_STATUSES = Set.of(
@@ -81,7 +79,10 @@ public class SolutionService {
                 .taskId(taskId)
                 .language(dto.language())
                 .status(SolutionStatus.PROCESSING)
+                .difficulty(task.difficulty())
+                .points(task.points())
                 .build();
+
         SolutionEntity saved = solutionRepository.save(solution);
         UUID solutionId = saved.getId();
 
@@ -95,7 +96,8 @@ public class SolutionService {
                 .normalizedCode(normalize(dto.code()))
                 .build());
 
-        kafkaExecution.send(TOPIC_CODE_EXECUTION, solutionId,
+
+        kafkaExecution.send(KafkaTopics.TOPIC_CODE_EXECUTION, solutionId,
                 CodeExecutionRequest.builder()
                         .solutionId(solutionId)
                         .taskId(taskId)
@@ -111,7 +113,7 @@ public class SolutionService {
         return solutionId;
     }
 
-    @KafkaListener(topics = "code-execution-results", groupId = "${spring.kafka.consumer.group-id}")
+    @KafkaListener(topics = KafkaTopics.TOPIC_EXECUTION_RESULTS, groupId = "${spring.kafka.consumer.group-id}")
     @Transactional
     public void onExecutionResult(CodeExecutionResult result) {
         UUID solutionId = result.solutionId();
@@ -120,6 +122,9 @@ public class SolutionService {
         SolutionEntity solution = solutionRepository.findById(solutionId)
                 .orElseThrow(() -> new SolutionNotFound(solutionId));
 
+        log.info("Solution difficulty: {}, language: {}, points: {}",
+                solution.getDifficulty(), solution.getLanguage(), solution.getPoints());
+
         solution.setStatus(result.status());
         solution.setPassedTests(result.passedTests());
         solution.setTotalTests(result.totalTests());
@@ -127,24 +132,26 @@ public class SolutionService {
         solution.setTestResults(result.testResults());
         solutionRepository.save(solution);
 
-
-
         if (FINAL_STATUSES.contains(result.status())) {
-            kafkaStats.send(TOPIC_TASK_STATS, solution.getTaskId(),
+            kafkaStats.send(KafkaTopics.TOPIC_TASK_STATS, solution.getUserId(),
                     TaskSubmissionEvent.builder()
                             .solutionId(solutionId)
                             .taskId(solution.getTaskId())
                             .userId(solution.getUserId())
-                            .accepted(result.status() == SolutionStatus.COMPLETED)
+                            .completed(result.status() == SolutionStatus.COMPLETED)
                             .timestamp(Instant.now())
+                            .points(solution.getPoints())
+                            .language(solution.getLanguage())
+                            .difficulty(solution.getDifficulty())
                             .build());
         }
 
         if (result.status() == SolutionStatus.COMPLETED) {
-            kafkaPlagiarism.send(TOPIC_PLAGIARISM, solutionId,
+            kafkaPlagiarism.send(KafkaTopics.TOPIC_SOLUTION_COMPLETED, solutionId,
                     SolutionCompletedEvent.builder()
                             .solutionId(solutionId)
                             .taskId(solution.getTaskId())
+                            .userId(solution.getUserId())
                             .language(solution.getLanguage())
                             .build());
         }

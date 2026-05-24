@@ -49,7 +49,8 @@ public class SecurityConfig {
                                 "/api/v1/tasks/**",
                                 "/api/v1/solutions/**",
                                 "/api/v1/tags/**",
-                                "/api/v1/plagiarism/**"
+                                "/api/v1/plagiarism/**",
+                                "/api/v1/statistics"
                         ).hasAnyRole("stream_hub.user", "stream_hub.admin")
                         .anyExchange().authenticated()
                 )
