@@ -1,7 +1,9 @@
 package com.technokratos.common.events;
 
 import com.technokratos.common.dto.tests.TestCaseResult;
+import com.technokratos.common.enums.ProgrammingLanguage;
 import com.technokratos.common.enums.SolutionStatus;
+import com.technokratos.common.enums.TaskDifficulty;
 import lombok.Builder;
 
 import java.util.List;
@@ -15,5 +17,10 @@ public record CodeExecutionResult(
         int totalTests,
         List<TestCaseResult> testResults,
         Long totalTimeMs,
+        TaskDifficulty difficulty,
+        ProgrammingLanguage language,
+        int points,
         String errorMessage              // для compile errors и internal errors
-) {}
+) {
+
+}

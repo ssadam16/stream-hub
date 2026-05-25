@@ -3,6 +3,7 @@ package com.technokratos.plagiarismservice.service;
 import com.technokratos.common.enums.ProgrammingLanguage;
 import com.technokratos.common.events.SolutionCompletedEvent;
 import com.technokratos.common.handler.exceptions.SolutionNotFound;
+import com.technokratos.common.topics.KafkaTopics;
 import com.technokratos.plagiarismservice.model.PlagiarismReport;
 import com.technokratos.plagiarismservice.model.SolutionSource;
 import com.technokratos.plagiarismservice.repository.MongoPlagiarismReportRepository;
@@ -36,8 +37,8 @@ public class PlagiarismService {
     private final MongoSolutionRepository mongoSolutionRepository;
     private final MongoPlagiarismReportRepository plagiarismReportRepository;
 
-    @KafkaListener(groupId = "plagiarism-service-group", topics = "solution-completed-events")
-    public void onSolutionCompeted(SolutionCompletedEvent event) {
+    @KafkaListener(groupId = "plagiarism-service-group", topics = KafkaTopics.TOPIC_SOLUTION_COMPLETED)
+    public void onSolutionCompleted(SolutionCompletedEvent event) {
         log.info("Checking plagiarism for solution: {}", event.solutionId());
         try {
             check(event);

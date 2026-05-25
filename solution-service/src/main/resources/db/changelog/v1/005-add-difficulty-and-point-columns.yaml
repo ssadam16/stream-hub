@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-difficulty-and-points-to-solutions
+      author: nongrataqqq
+      changes:
+        - addColumn:
+            tableName: solutions
+            columns:
+              - column:
+                  name: difficulty
+                  type: varchar(32)
+              - column:
+                  name: points
+                  type: integer
+                  defaultValueNumeric: "0"
