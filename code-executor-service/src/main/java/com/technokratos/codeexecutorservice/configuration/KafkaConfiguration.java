@@ -38,7 +38,7 @@ public class KafkaConfiguration {
                 .maxAttempts(4)
                 .exponentialBackoff(1000, 5, 30000)
                 .dltHandlerMethod("codeExecutionService", "handleDlqMessage")
-                .includeTopics(List.of("code-execution-topic"))
+                .includeTopics(List.of(KafkaTopics.TOPIC_CODE_EXECUTION))
                 .retryTopicSuffix(".retry")
                 .create(template);
     }
