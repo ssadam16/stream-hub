@@ -1,8 +1,11 @@
 package com.technokratos.solutionservice.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.technokratos.common.dto.*;
 import com.technokratos.common.dto.tests.TestCaseFull;
 import com.technokratos.common.dto.tests.TestCasePublic;
+import com.technokratos.common.enums.OutboxEventStatus;
 import com.technokratos.common.enums.SolutionStatus;
 import com.technokratos.common.events.CodeExecutionRequest;
 import com.technokratos.common.events.CodeExecutionResult;
@@ -15,9 +18,11 @@ import com.technokratos.securityspringbootstarter.SecurityUtil;
 import com.technokratos.solutionservice.client.TaskClient;
 import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.mapper.SolutionMapper;
+import com.technokratos.solutionservice.model.OutboxEvent;
 import com.technokratos.solutionservice.model.SolutionEntity;
 import com.technokratos.solutionservice.model.SolutionSource;
 import com.technokratos.solutionservice.repository.MongoSolutionRepository;
+import com.technokratos.solutionservice.repository.OutboxEventRepository;
 import com.technokratos.solutionservice.repository.SolutionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,6 +69,8 @@ public class SolutionService {
     private final KafkaTemplate<UUID, CodeExecutionRequest> kafkaExecution;
     private final KafkaTemplate<UUID, TaskSubmissionEvent> kafkaStats;
     private final KafkaTemplate<UUID, SolutionCompletedEvent> kafkaPlagiarism;
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public UUID submit(SolutionRequest dto, UUID taskId, UUID userId) {
@@ -80,33 +87,42 @@ public class SolutionService {
                 .points(task.points())
                 .build();
 
-        SolutionEntity saved = solutionRepository.save(solution);
-        UUID solutionId = saved.getId();
+        SolutionEntity savedSolution = solutionRepository.save(solution);
+        UUID solutionId = savedSolution.getId();
 
-        mongoSolutionRepository.save(SolutionSource.builder()
-                .solutionId(solutionId)
-                .taskId(taskId)
-                .userId(userId)
-                .language(dto.language())
-                .code(dto.code())
-                .codeHash(sha256(dto.code()))
-                .normalizedCode(normalize(dto.code()))
-                .build());
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(
+                    CodeExecutionRequest.builder()
+                            .solutionId(solutionId)
+                            .taskId(taskId)
+                            .userId(userId)
+                            .language(dto.language())
+                            .code(dto.code())
+                            .timeLimitMs(task.timeLimitMs())
+                            .memoryLimitMb(task.memoryLimitMb())
+                            .testCases(toExecutorTests(task.testCases()))
+                            .build()
+            );
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize CodeExecutionRequests ", e);
+        }
 
+        outboxEventRepository.save(
+                OutboxEvent.builder()
+                        .topic(KafkaTopics.TOPIC_CODE_EXECUTION)
+                        .aggregateId(solutionId)
+                        .messageKey(userId)
+                        .status(OutboxEventStatus.NEW)
+                        .eventType("CODE_EXECUTION_REQUEST")
+                        .payload(payload)
+                        .build()
+        );
 
-        kafkaExecution.send(KafkaTopics.TOPIC_CODE_EXECUTION, solutionId,
-                CodeExecutionRequest.builder()
-                        .solutionId(solutionId)
-                        .taskId(taskId)
-                        .userId(userId)
-                        .language(dto.language())
-                        .code(dto.code())
-                        .timeLimitMs(task.timeLimitMs())
-                        .memoryLimitMb(task.memoryLimitMb())
-                        .testCases(toExecutorTests(task.testCases()))
-                        .build());
+        // 3. Сохраняем код решения в Mongo **вне** основной транзакции
+        saveSolutionSourceAsync(solutionId, taskId, userId, dto);
 
-        log.info("Solution {} submitted and execution requested", solutionId);
+        log.info("Solution {} submitted and execution requested via outbox", solutionId);
         return solutionId;
     }
 
@@ -141,27 +157,53 @@ public class SolutionService {
         solutionRepository.save(solution);
 
         if (FINAL_STATUSES.contains(result.status())) {
-            kafkaStats.send(KafkaTopics.TOPIC_TASK_STATS, solution.getUserId(),
-                    TaskSubmissionEvent.builder()
-                            .solutionId(solutionId)
-                            .taskId(solution.getTaskId())
-                            .userId(solution.getUserId())
-                            .completed(result.status() == SolutionStatus.COMPLETED)
-                            .timestamp(Instant.now())
-                            .points(solution.getPoints())
-                            .language(solution.getLanguage())
-                            .difficulty(solution.getDifficulty())
-                            .build());
+            try {
+                String statsPayload = objectMapper.writeValueAsString(
+                        TaskSubmissionEvent.builder()
+                                .solutionId(solutionId)
+                                .taskId(solution.getTaskId())
+                                .userId(solution.getUserId())
+                                .completed(result.status() == SolutionStatus.COMPLETED)
+                                .timestamp(Instant.now())
+                                .points(solution.getPoints())
+                                .language(solution.getLanguage())
+                                .difficulty(solution.getDifficulty())
+                                .build()
+                );
+                outboxEventRepository.save(OutboxEvent.builder()
+                        .topic(KafkaTopics.TOPIC_TASK_STATS)
+                        .aggregateId(solutionId)
+                        .messageKey(solution.getUserId())
+                        .status(OutboxEventStatus.NEW)
+                        .eventType("TASK_SUBMISSION")
+                        .payload(statsPayload)
+                        .build());
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Failed to serialize TaskSubmissionEvent", e);
+            }
         }
 
         if (result.status() == SolutionStatus.COMPLETED) {
-            kafkaPlagiarism.send(KafkaTopics.TOPIC_SOLUTION_COMPLETED, solutionId,
-                    SolutionCompletedEvent.builder()
-                            .solutionId(solutionId)
-                            .taskId(solution.getTaskId())
-                            .userId(solution.getUserId())
-                            .language(solution.getLanguage())
-                            .build());
+            try {
+                String plagPayload = objectMapper.writeValueAsString(
+                        SolutionCompletedEvent.builder()
+                                .solutionId(solutionId)
+                                .taskId(solution.getTaskId())
+                                .userId(solution.getUserId())
+                                .language(solution.getLanguage())
+                                .build()
+                );
+                outboxEventRepository.save(OutboxEvent.builder()
+                        .topic(KafkaTopics.TOPIC_SOLUTION_COMPLETED)
+                        .aggregateId(solutionId)
+                        .messageKey(solutionId)
+                        .status(OutboxEventStatus.NEW)
+                        .eventType("SOLUTION_COMPLETED")
+                        .payload(plagPayload)
+                        .build());
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Failed to serialize SolutionCompletedEvent", e);
+            }
         }
     }
 
@@ -242,6 +284,28 @@ public class SolutionService {
                 summaries.getTotalElements(),
                 summaries.getTotalPages()
         );
+    }
+
+    private void saveSolutionSourceAsync(UUID solutionId, UUID taskId, UUID userId, SolutionRequest dto) {
+        // Можно запустить в отдельном потоке или просто синхронно после коммита
+        try {
+            mongoSolutionRepository.save(SolutionSource.builder()
+                    .solutionId(solutionId)
+                    .taskId(taskId)
+                    .userId(userId)
+                    .language(dto.language())
+                    .code(dto.code())
+                    .codeHash(sha256(dto.code()))
+                    .normalizedCode(normalize(dto.code()))
+                    .build());
+
+            log.debug("Solution source saved to Mongo for solution {}", solutionId);
+
+        } catch (Exception e) {
+            log.error("Failed to save solution source to Mongo for solution {}. " +
+                    "Solution exists in Postgres and outbox event was created.", solutionId, e);
+            // Можно добавить метрику или отправить в отдельный outbox для повторной попытки
+        }
     }
 
     private static List<TestCasePublic> toExecutorTests(List<TestCaseFull> cases) {
