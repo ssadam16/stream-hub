@@ -38,6 +38,9 @@ public class Task extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private TaskDifficulty difficulty;
 
+    @Column(nullable = false)
+    private Integer points;
+
     @Column(nullable = false, length = 32)
     @Enumerated(EnumType.STRING)
     @Builder.Default
@@ -49,9 +52,6 @@ public class Task extends BaseEntity {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private TaskTestType type;
-
-    @Column(nullable = false)
-    private Integer points;
 
     @Column(name = "time_limit_ms", nullable = false)
     private Integer timeLimitMs;
