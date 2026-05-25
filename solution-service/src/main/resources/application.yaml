@@ -72,6 +72,9 @@ security:
       - /swagger-resources/**
       - /actuator/**
 
+reaper:
+  processing-timeout-minutes: 10
+  interval-ms: 60000
 
 management:
   tracing:
