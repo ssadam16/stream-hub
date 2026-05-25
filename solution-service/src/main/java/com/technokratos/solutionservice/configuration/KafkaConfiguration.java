@@ -59,6 +59,11 @@ public class KafkaConfiguration {
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerProps()));
     }
 
+    @Bean
+    public KafkaTemplate<UUID, Object> kafkaTemplate() {
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerProps()));
+    }
+
     // ---------- consumer for code-execution-results ----------
 
     @Bean
