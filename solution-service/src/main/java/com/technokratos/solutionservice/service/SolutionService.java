@@ -33,10 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
@@ -119,6 +116,17 @@ public class SolutionService {
 
         SolutionEntity solution = solutionRepository.findById(solutionId)
                 .orElseThrow(() -> new SolutionNotFound(solutionId));
+
+        if (FINAL_STATUSES.contains(solution.getStatus())) {
+            log.warn("Solution {} already in final status {}, skipping duplicate", solutionId, solution.getStatus());
+            return;
+        }
+
+        if (solution.getStatus() == result.status() &&
+                Objects.equals(solution.getPassedTests(), result.passedTests())) {
+            log.info("Duplicate identical result for solution {}, skipping", solutionId);
+            return;
+        }
 
         solution.setStatus(result.status());
         solution.setPassedTests(result.passedTests());
