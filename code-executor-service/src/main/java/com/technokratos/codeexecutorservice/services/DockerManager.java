@@ -1,6 +1,7 @@
 package com.technokratos.codeexecutorservice.services;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
@@ -11,14 +12,11 @@ import com.technokratos.common.dto.ExecResult;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -193,57 +191,73 @@ public class DockerManager {
     }
 
     public ExecResult execWithStdin(String containerId, String input, int timeoutMs, String... command) {
-        try {
-            // Экранируем input для shell
-            String escapedInput = input.replace("'", "'\\''");
+        byte[] inputBytes = input != null
+                ? input.getBytes(StandardCharsets.UTF_8)
+                : new byte[0];
 
+        String stdinPath = "/tmp/stdin-" + java.util.UUID.randomUUID();
 
-            String fullCommand = "echo '%s' | %s".formatted(escapedInput, String.join(" ", command));
+        String encoded = Base64.getEncoder().encodeToString(inputBytes);
+        ExecResult writeResult = execCommand(
+                containerId,
+                "sh", "-c",
+                "echo %s | base64 -d > %s".formatted(encoded, stdinPath)
+        );
+        if (writeResult.exitCode() != 0) {
+            throw new RuntimeException("Failed to write stdin file: " + writeResult.stderr());
+        }
 
-            String[] wrappedCommand = new String[]{"sh", "-c", fullCommand};
+        String joinedCommand = buildShellCommand(command);
+        String fullCommand = "%s < %s".formatted(joinedCommand, stdinPath);
 
-            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+        ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+        ByteArrayOutputStream stderr = new ByteArrayOutputStream();
 
-            var execCreateResp = dockerClient.execCreateCmd(containerId)
-                    .withCmd(wrappedCommand)
-                    .withWorkingDir("/workspace")
-                    .withAttachStdin(false)  // ← не нужен stdin через pipe
-                    .withAttachStdout(true)
-                    .withAttachStderr(true)
-                    .exec();
+        var execCmd = dockerClient.execCreateCmd(containerId)
+                .withCmd("sh", "-c", fullCommand)
+                .withAttachStdout(true)
+                .withAttachStderr(true)
+                .exec();
 
-            String execId = execCreateResp.getId();
-            long startTime = System.currentTimeMillis();
+        long startTime = System.currentTimeMillis();
 
-            var callback = dockerClient.execStartCmd(execId)
-                    .exec(new ResultCallbackTemplate<>() {
-                        @Override
-                        public void onNext(Frame frame) {
-                            try {
-                                if (frame.getStreamType() == StreamType.STDOUT) {
-                                    stdout.write(frame.getPayload());
-                                } else if (frame.getStreamType() == StreamType.STDERR) {
-                                    stderr.write(frame.getPayload());
-                                }
-                            } catch (IOException e) {
-                                log.error("Error reading exec output", e);
+        try (ResultCallback.Adapter<Frame> callback = dockerClient.execStartCmd(execCmd.getId())
+                .exec(new ResultCallback.Adapter<Frame>() {
+                    @Override
+                    public void onNext(Frame frame) {
+                        try {
+                            if (frame.getStreamType() == StreamType.STDOUT) {
+                                stdout.write(frame.getPayload());
+                            } else if (frame.getStreamType() == StreamType.STDERR) {
+                                stderr.write(frame.getPayload());
                             }
+                        } catch (IOException e) {
+                            log.error("Error reading exec output", e);
                         }
-                    });
+                    }
+                })) {
 
             boolean finished = callback.awaitCompletion(timeoutMs, TimeUnit.MILLISECONDS);
             long elapsedMs = System.currentTimeMillis() - startTime;
 
             if (!finished) {
-                log.warn("Exec command timed out after {} seconds", timeoutMs);
-                return new ExecResult("", "Timeout", -1, elapsedMs, true);
+                killExecProcess(containerId, execCmd.getId());
+                cleanupStdinFile(containerId, stdinPath);
+                return new ExecResult(
+                        stdout.toString(StandardCharsets.UTF_8),
+                        "Timeout",
+                        -1,
+                        elapsedMs,
+                        true
+                );
             }
 
-            var inspectExec = dockerClient.inspectExecCmd(execId).exec();
-            int exitCode = inspectExec.getExitCodeLong() != null
-                    ? inspectExec.getExitCodeLong().intValue()
+            var inspect = dockerClient.inspectExecCmd(execCmd.getId()).exec();
+            int exitCode = inspect.getExitCodeLong() != null
+                    ? inspect.getExitCodeLong().intValue()
                     : 0;
+
+            cleanupStdinFile(containerId, stdinPath);
 
             return new ExecResult(
                     stdout.toString(StandardCharsets.UTF_8),
@@ -259,6 +273,39 @@ public class DockerManager {
         } catch (Exception e) {
             log.error("Failed to exec command with stdin", e);
             throw new RuntimeException("Exec failed", e);
+        }
+    }
+
+    private String buildShellCommand(String... command) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < command.length; i++) {
+            if (i > 0) {
+                sb.append(' ');
+            }
+            sb.append('\'')
+                    .append(command[i].replace("'", "'\\''"))
+                    .append('\'');
+        }
+        return sb.toString();
+    }
+
+    private void cleanupStdinFile(String containerId, String stdinPath) {
+        try {
+            execCommand(containerId, "sh", "-c", "rm -f " + stdinPath);
+        } catch (Exception e) {
+            log.warn("Failed to clean up stdin file {} in container {}", stdinPath, containerId, e);
+        }
+    }
+
+    private void killExecProcess(String containerId, String execId) {
+        try {
+            var inspect = dockerClient.inspectExecCmd(execId).exec();
+            Long pid = inspect.getPidLong();
+            if (pid != null && pid > 0) {
+                execCommand(containerId, "sh", "-c", "kill -9 " + pid + " 2>/dev/null || true");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to kill exec process {} in container {}", execId, containerId, e);
         }
     }
 
