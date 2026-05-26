@@ -31,7 +31,7 @@ public interface SolutionRepository extends JpaRepository<SolutionEntity, UUID> 
             GROUP BY s.taskId
             ORDER BY MAX(s.updatedAt) DESC
             """)
-    Page<UserTaskSummary> findUserTaskSummaries(@Param("userId") UUID userId, Pageable pageable);
+    List<UserTaskSummary> findAllUserTaskSummaries(@Param("userId") UUID userId);
 
     List<SolutionEntity> findByStatusAndCreatedAtBefore(SolutionStatus status, Instant threshold);
 }

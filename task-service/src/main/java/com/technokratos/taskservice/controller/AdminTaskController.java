@@ -70,7 +70,7 @@ public class AdminTaskController implements AdminTaskApi {
     }
 
     @Override
-    public ResponseEntity<ImportResult> importTasks(MultipartFile file, UUID adminId) {
+    public ResponseEntity<ImportResult> importTasks(MultipartFile file, Jwt jwt) {
         FileParser parser = fileParserFactory.getParser(Objects.requireNonNull(file.getOriginalFilename()));
         List<TaskImportRequest> tasks;
         try {
@@ -79,6 +79,6 @@ public class AdminTaskController implements AdminTaskApi {
             return ResponseEntity.badRequest()
                     .body(new ImportResult(0, 0, "Failed to parse file: " + e.getMessage()));
         }
-        return ResponseEntity.ok(taskImportService.importTasks(tasks, adminId));
+        return ResponseEntity.ok(taskImportService.importTasks(tasks, UUID.fromString(jwt.getSubject())));
     }
 }
