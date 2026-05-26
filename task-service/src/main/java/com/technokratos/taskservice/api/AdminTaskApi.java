@@ -61,6 +61,6 @@ public interface AdminTaskApi {
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<ImportResult> importTasks(
             @RequestParam("file") MultipartFile file,
-            @RequestHeader("X-User-Id") UUID adminId
+            @AuthenticationPrincipal Jwt jwt
     );
 }
