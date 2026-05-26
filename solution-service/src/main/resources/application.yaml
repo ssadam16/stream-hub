@@ -72,6 +72,34 @@ security:
       - /swagger-resources/**
       - /actuator/**
 
+resilience4j:
+  retry:
+    instances:
+      defaultRetry:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException  # не повторяем клиентские ошибки
+    retryAspectOrder: 2
+
+  circuitbreaker:
+    instances:
+      defaultCircuitBreaker:
+        slidingWindowSize: 40
+        failureRateThreshold: 75
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 10
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+    circuitBreakerAspectOrder: 1
+
 
 management:
   tracing:
@@ -80,7 +108,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus,info
+        include: health,prometheus,info,resilience4j.*
 
 otel:
   sdk:

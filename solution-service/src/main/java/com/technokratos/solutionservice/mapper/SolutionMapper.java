@@ -2,8 +2,12 @@ package com.technokratos.solutionservice.mapper;
 
 import com.technokratos.common.dto.SolutionShortView;
 import com.technokratos.common.dto.SolutionView;
+import com.technokratos.common.dto.tests.TestCaseFull;
+import com.technokratos.common.dto.tests.TestCasePublic;
 import com.technokratos.solutionservice.model.SolutionEntity;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class SolutionMapper {
@@ -34,5 +38,18 @@ public class SolutionMapper {
                 .createdAt(s.getCreatedAt())
                 .updatedAt(s.getUpdatedAt())
                 .build();
+    }
+
+    public List<TestCasePublic> toExecutorTests(List<TestCaseFull> cases) {
+        if (cases == null || cases.isEmpty()) {
+            return List.of();
+        }
+        return cases.stream()
+                .map(c -> TestCasePublic.builder()
+                        .id(c.id())
+                        .input(c.input())
+                        .expectedOutput(c.expectedOutput())
+                        .build())
+                .toList();
     }
 }
