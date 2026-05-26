@@ -72,6 +72,10 @@ security:
       - /swagger-resources/**
       - /actuator/**
 
+reaper:
+  processing-timeout-minutes: 10
+  interval-ms: 60000
+
 resilience4j:
   retry:
     instances:
@@ -85,7 +89,7 @@ resilience4j:
           - java.io.IOException
           - java.util.concurrent.TimeoutException
         ignore-exceptions:
-          - org.springframework.web.client.HttpClientErrorException  # не повторяем клиентские ошибки
+          - org.springframework.web.client.HttpClientErrorException
     retryAspectOrder: 2
 
   circuitbreaker:
@@ -99,7 +103,6 @@ resilience4j:
           - java.io.IOException
           - java.util.concurrent.TimeoutException
     circuitBreakerAspectOrder: 1
-
 
 management:
   tracing:
