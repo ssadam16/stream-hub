@@ -1,0 +1,23 @@
+package com.technokratos.apigateway;
+
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import reactor.core.publisher.Mono;
+
+import static org.mockito.Mockito.mock;
+
+@TestConfiguration
+public class TestSecurityConfig {
+
+    @Bean
+    @Primary
+    public ReactiveJwtDecoder reactiveJwtDecoder() {
+        ReactiveJwtDecoder decoder = mock(ReactiveJwtDecoder.class);
+        // на всякий случай — если кто-то дернет decode в этом тесте
+        org.mockito.Mockito.when(decoder.decode(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(Mono.empty());
+        return decoder;
+    }
+}
