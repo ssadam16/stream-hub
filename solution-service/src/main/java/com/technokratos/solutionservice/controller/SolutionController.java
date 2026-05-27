@@ -18,6 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -37,8 +38,8 @@ public class SolutionController implements SolutionApi {
     }
 
     @Override
-    public PageResponse<CompletedTaskView> myCompleted(Pageable pageable, Jwt jwt) {
-        return service.getMyCompletedTasks(UUID.fromString(jwt.getSubject()), pageable);
+    public List<CompletedTaskView> myCompleted(Jwt jwt) {
+        return service.getMyCompletedTasks(UUID.fromString(jwt.getSubject()));
     }
 
     @Override
@@ -50,5 +51,7 @@ public class SolutionController implements SolutionApi {
     public void delete(UUID solutionId, Jwt jwt) {
         service.delete(solutionId, jwt);
     }
+
+
     //getAllCompletedSolutionsByTaskId
 }

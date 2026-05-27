@@ -17,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Solutions")
@@ -41,8 +42,7 @@ public interface SolutionApi {
 
     @Operation(summary = "Get my completed tasks")
     @GetMapping("/my/completed-tasks")
-    PageResponse<CompletedTaskView> myCompleted(
-            @PageableDefault(size = 20, sort = "lastSolvedAt", direction = Sort.Direction.DESC) Pageable pageable,
+    List<CompletedTaskView> myCompleted(
             @AuthenticationPrincipal Jwt jwt
     );
 
