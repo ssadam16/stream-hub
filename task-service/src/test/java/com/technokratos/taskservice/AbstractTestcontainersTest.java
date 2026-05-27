@@ -52,7 +52,6 @@ public abstract class AbstractTestcontainersTest {
         registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
 
         // Дополнительные настройки Hibernate
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
         registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.PostgreSQLDialect");
         registry.add("spring.jpa.show-sql", () -> "false");
     }

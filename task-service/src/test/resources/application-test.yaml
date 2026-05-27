@@ -1,8 +1,11 @@
 spring:
   datasource:
-    password: test  # будет переопределено DynamicPropertySource, но нужно чтобы Spring не падал при парсинге
-  liquibase:
-    enabled: false  # если есть Liquibase/Flyway — отключи, TC сам накатит схему
+    password: test
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop   # ← добавь это, перебьёт validate из основного
   security:
     oauth2:
       resourceserver:
