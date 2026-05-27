@@ -1,6 +1,7 @@
 image:
   repository: registry.gitlab.com/nongrataqqq/stream-hub/api-gateway
   tag: "latest"
+  pullSecret: gitlab-registry
 
 service:
   port: 8080
@@ -12,4 +13,6 @@ env:
   USER_SERVICE_URI: "http://user-service:8081"
   KEYCLOAK_SERVICE_URI: "http://keycloak:8080"
   KEYCLOAK_CLIENT_ID: "gateway-client"
-  KEYCLOAK_CLIENT_SECRET: "Tez3cDKNpnCkE1XWRNenHYcfsKwJJZa1"
+
+secrets: {}
+# KEYCLOAK_CLIENT_SECRET:

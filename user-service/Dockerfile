@@ -6,6 +6,7 @@ WORKDIR /app
 COPY settings.gradle build.gradle gradle.properties* ./
 COPY gradle/ ./gradle/
 COPY gradlew .
+COPY security-spring-boot-starter/build.gradle ./security-spring-boot-starter/
 COPY common/build.gradle ./common/
 COPY user-service/build.gradle ./user-service/
 
@@ -14,6 +15,7 @@ RUN ./gradlew dependencies --no-daemon
 
 # Копируем исходники и собираем
 COPY common/ ./common/
+COPY security-spring-boot-starter/ ./security-spring-boot-starter/
 COPY user-service/ ./user-service/
 RUN ./gradlew :user-service:bootJar --no-daemon -x test
 

@@ -1,10 +1,13 @@
 image:
   repository: registry.gitlab.com/nongrataqqq/stream-hub/code-executor-service
   tag: "latest"
+  pullSecret: gitlab-registry
 
 service:
   port: 8085
 
 env:
   TASK_SERVICE_URI: "http://task-service:8083"
-  BOOTSTRAP_SERVERS: "kafka-1:9090,kafka-2:9090,kafka-3:9090"
+  BOOTSTRAP_SERVERS: "kafka:9092"
+
+secrets: {}
