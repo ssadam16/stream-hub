@@ -17,7 +17,7 @@ spring:
           keycloak:
             provider: keycloak
             client-id: ${KEYCLOAK_CLIENT_ID:gateway-client}
-            client-secret: ${KEYCLOAK_CLIENT_SECRET}
+            client-secret: ${GATEWAY_KEYCLOAK_CLIENT_SECRET}
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
             scope: openid, profile, email

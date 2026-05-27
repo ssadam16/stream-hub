@@ -1,21 +1,25 @@
 image:
   repository: registry.gitlab.com/nongrataqqq/stream-hub/solution-service
   tag: "latest"
+  pullSecret: gitlab-registry
 
 service:
   port: 8084
 
 env:
   SPRING_DATASOURCE_URL: "jdbc:postgresql://solution-service-postgres:5432/solution-service-db"
-  SPRING_DATASOURCE_USERNAME: "postgres"
-  DB_PASSWORD: "235094"
-  BOOTSTRAP_SERVERS: "kafka-1:9090,kafka-2:9090,kafka-3:9090"
+  SPRING_DATASOURCE_USERNAME: "laebav"
+  BOOTSTRAP_SERVERS: "kafka:9092"
   TASK_SERVICE_URI: "http://task-service:8083"
   MONGO_HOST: "mongodb"
-  MONGO_ROOT_USERNAME: "nongrataqqq"
-  MONGO_ROOT_PASSWORD: "235094"
-  KEYCLOAK_ISSUER_URI: "http://keycloak:8080/realms/stream-hub"
+  KEYCLOAK_ISSUER_URI: "http://94.232.43.131:8090/realms/stream-hub"
   KEYCLOAK_JWK_SET_URI: "http://keycloak:8080/realms/stream-hub/protocol/openid-connect/certs"
   KEYCLOAK_TOKEN_URI: "http://keycloak:8080/realms/stream-hub/protocol/openid-connect/token"
   SOLUTION_SERVICE_CLIENT_ID: "solution-service-client"
-  SOLUTION_SERVICE_CLIENT_SECRET: "ZUrDsvTVNLpZGLRr1FtWwtdPFshBYJoT"
+
+# Значения передаются через CI: --set secrets.DB_PASSWORD=$SECRET_DB_PASSWORD и т.д.
+secrets: {}
+# DB_PASSWORD:
+# MONGO_ROOT_USERNAME:
+# MONGO_ROOT_PASSWORD:
+# SOLUTION_SERVICE_CLIENT_SECRET:
