@@ -1,9 +1,13 @@
+KEYCLOAK_CLIENT_ID: test-client
+GATEWAY_KEYCLOAK_CLIENT_SECRET: test-secret
+
 spring:
   security:
     oauth2:
       client:
         registration:
           keycloak:
+            client-id: test-client
             client-secret: test-secret
         provider:
           keycloak:
