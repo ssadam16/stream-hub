@@ -1,4 +1,13 @@
 spring:
+  datasource:
+    password: test  # будет переопределено DynamicPropertySource, но нужно чтобы Spring не падал при парсинге
+  liquibase:
+    enabled: false  # если есть Liquibase/Flyway — отключи, TC сам накатит схему
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost
   kafka:
     bootstrap-servers: localhost:9092
     producer:
