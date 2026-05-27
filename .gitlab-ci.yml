@@ -13,7 +13,8 @@ test:
   stage: test
   image: gradle:8.14-jdk21
   services:
-    - docker:dind
+    - name: docker:27-dind
+      alias: docker
   variables:
     SPRING_PROFILES_ACTIVE: test
     DOCKER_HOST: tcp://docker:2375
@@ -21,20 +22,11 @@ test:
     TESTCONTAINERS_RYUK_DISABLED: "true"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  before_script:
+    - apt-get update -qq && apt-get install -y docker.io
+    - docker info  # проверка что Docker доступен
   script:
     - gradle test --no-daemon --stacktrace
-  cache:
-    key: gradle-${CI_COMMIT_REF_SLUG}
-    paths:
-      - .gradle/
-      - "*/build/"   # опционально, если хочешь incremental между джобами
-  artifacts:
-    when: always
-    paths:
-      - "*/build/reports/tests/"
-    reports:
-      junit: "*/build/test-results/test/*.xml"
-    expire_in: 1 week
 # ──────────────────────────────────────────
 # STAGE 2 — сборка и публикация Docker образов
 # ──────────────────────────────────────────
