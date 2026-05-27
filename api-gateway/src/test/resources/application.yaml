@@ -1,3 +1,23 @@
 GATEWAY_KEYCLOAK_CLIENT_SECRET: test-secret
 KEYCLOAK_CLIENT_ID: test-client
-KEYCLOAK_SERVICE_URI: http://localhost:9999
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            provider: keycloak
+            client-id: test-client
+            client-secret: test-secret
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
+            scope: openid, profile, email
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:9999/realms/stream-hub
+            authorization-uri: http://localhost:9999/realms/stream-hub/protocol/openid-connect/auth
+            token-uri: http://localhost:9999/realms/stream-hub/protocol/openid-connect/token
+            jwk-set-uri: http://localhost:9999/realms/stream-hub/protocol/openid-connect/certs
+            user-info-uri: http://localhost:9999/realms/stream-hub/protocol/openid-connect/userinfo
+            user-name-attribute: preferred_username
