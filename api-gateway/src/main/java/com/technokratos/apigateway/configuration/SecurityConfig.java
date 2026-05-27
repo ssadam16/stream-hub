@@ -74,6 +74,7 @@ public class SecurityConfig {
             @Value("${spring.security.oauth2.client.provider.keycloak.issuer-uri}") String issuerUri) {
         return ReactiveJwtDecoders.fromIssuerLocation(issuerUri);
     }
+
     @Bean
     public Converter<Jwt, Mono<AbstractAuthenticationToken>> jwtAuthenticationConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();

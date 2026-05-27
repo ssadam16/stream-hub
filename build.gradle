@@ -26,6 +26,18 @@ subprojects {
         mavenCentral()
     }
 
+    dependencies {
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+        testAnnotationProcessor 'org.projectlombok:lombok'
+        testCompileOnly 'org.projectlombok:lombok'
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.annotationProcessorGeneratedSourcesDirectory =
+                layout.buildDirectory.dir("generated/sources/annotationProcessor/java/main").get().asFile
+    }
+
     dependencyManagement {
         imports {
             mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"

@@ -111,7 +111,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus,info,resilience4j.*
+        include: health,prometheus,info
 
 otel:
   exporter:

@@ -45,6 +45,7 @@ public class OutboxEvent {
     private String payload;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(nullable = false, length = 20)
     private OutboxEventStatus status = OutboxEventStatus.NEW;
 
