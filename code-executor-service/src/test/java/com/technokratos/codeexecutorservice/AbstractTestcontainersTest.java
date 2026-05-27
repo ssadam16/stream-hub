@@ -8,6 +8,4 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 public abstract class AbstractTestcontainersTest {
-    // Docker daemon будет доступен через TestContainers
-    // Ничего дополнительно настраивать не нужно
 }
