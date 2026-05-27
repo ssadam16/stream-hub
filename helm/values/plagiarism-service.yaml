@@ -1,0 +1,13 @@
+image:
+  repository: registry.gitlab.com/nongrataqqq/stream-hub/plagiarism-service
+  tag: "latest"
+
+service:
+  port: 8086
+
+env:
+  BOOTSTRAP_SERVERS: "kafka-1:9090,kafka-2:9090,kafka-3:9090"
+  MONGO_ROOT_USERNAME: "nongrataqqq"
+  MONGO_ROOT_PASSWORD: "235094"
+  KEYCLOAK_ISSUER_URI: "http://keycloak:8080/realms/stream-hub"
+  KEYCLOAK_JWK_SET_URI: "http://keycloak:8080/realms/stream-hub/protocol/openid-connect/certs"

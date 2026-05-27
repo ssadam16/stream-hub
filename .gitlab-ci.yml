@@ -1,0 +1,118 @@
+stages:
+  - build
+  - docker
+  - deploy
+
+variables:
+  REGISTRY: registry.gitlab.com/nongrataqqq/stream-hub
+  KUBE_CONFIG: $KUBE_CONFIG_BASE64
+
+# ──────────────────────────────────────────
+# STAGE 1 — сборка JAR
+# ──────────────────────────────────────────
+build:
+  stage: build
+  image: gradle:8.14-jdk21
+  script:
+    - gradle bootJar -x test --no-daemon
+  artifacts:
+    paths:
+      - "*/build/libs/*.jar"
+    expire_in: 1 hour
+  cache:
+    key: gradle-cache
+    paths:
+      - .gradle/
+
+# ──────────────────────────────────────────
+# STAGE 2 — сборка Docker образов
+# ──────────────────────────────────────────
+.docker_build: &docker_build
+  stage: docker
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -f ${SERVICE_NAME}/Dockerfile -t $REGISTRY/$SERVICE_NAME:$CI_COMMIT_SHA -t $REGISTRY/$SERVICE_NAME:latest .
+    - docker push $REGISTRY/$SERVICE_NAME:$CI_COMMIT_SHA
+    - docker push $REGISTRY/$SERVICE_NAME:latest
+
+docker:task-service:
+  <<: *docker_build
+  variables:
+    SERVICE_NAME: task-service
+
+docker:solution-service:
+  <<: *docker_build
+  variables:
+    SERVICE_NAME: solution-service
+
+docker:user-service:
+  <<: *docker_build
+  variables:
+    SERVICE_NAME: user-service
+
+docker:api-gateway:
+  <<: *docker_build
+  variables:
+    SERVICE_NAME: api-gateway
+
+docker:code-executor-service:
+  <<: *docker_build
+  variables:
+    SERVICE_NAME: code-executor-service
+
+docker:plagiarism-service:
+  <<: *docker_build
+  variables:
+    SERVICE_NAME: plagiarism-service
+
+# ──────────────────────────────────────────
+# STAGE 3 — деплой через Helm
+# ──────────────────────────────────────────
+.helm_deploy: &helm_deploy
+  stage: deploy
+  image: alpine/helm:3.15.0
+  before_script:
+    - mkdir -p ~/.kube
+    - echo $KUBE_CONFIG_BASE64 | base64 -d > ~/.kube/config
+  script:
+    - helm upgrade --install $SERVICE_NAME ./helm/microservice
+      --values ./helm/values/${SERVICE_NAME}.yaml
+      --set image.tag=$CI_COMMIT_SHA
+      --namespace stream-hub
+      --create-namespace
+      --wait
+      --timeout 5m
+
+deploy:task-service:
+  <<: *helm_deploy
+  variables:
+    SERVICE_NAME: task-service
+
+deploy:solution-service:
+  <<: *helm_deploy
+  variables:
+    SERVICE_NAME: solution-service
+
+deploy:user-service:
+  <<: *helm_deploy
+  variables:
+    SERVICE_NAME: user-service
+
+deploy:api-gateway:
+  <<: *helm_deploy
+  variables:
+    SERVICE_NAME: api-gateway
+
+deploy:code-executor-service:
+  <<: *helm_deploy
+  variables:
+    SERVICE_NAME: code-executor-service
+
+deploy:plagiarism-service:
+  <<: *helm_deploy
+  variables:
+    SERVICE_NAME: plagiarism-service

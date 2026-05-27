@@ -1,0 +1,15 @@
+image:
+  repository: registry.gitlab.com/nongrataqqq/stream-hub/user-service
+  tag: "latest"
+
+service:
+  port: 8081
+
+env:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://user-service-postgres:5432/user-service-db"
+  SPRING_DATASOURCE_USERNAME: "postgres"
+  DB_PASSWORD: "235094"
+  BOOTSTRAP_SERVERS: "kafka-1:9090,kafka-2:9090,kafka-3:9090"
+  KEYCLOAK_ISSUER_URI: "http://keycloak:8080/realms/stream-hub"
+  KEYCLOAK_JWK_SET_URI: "http://keycloak:8080/realms/stream-hub/protocol/openid-connect/certs"
+  OTEL_HOST: "otel-collector"
