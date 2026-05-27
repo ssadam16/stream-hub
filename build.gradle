@@ -58,5 +58,10 @@ configure(subprojects.findAll { it.name != 'common' && it.name != 'security-spri
         implementation 'io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter'
         implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
         implementation 'io.micrometer:micrometer-registry-prometheus'
+        testImplementation 'org.testcontainers:junit-jupiter'
+        testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+        testImplementation 'org.testcontainers:mongodb'
+        testImplementation 'org.testcontainers:kafka'
+        testImplementation 'org.testcontainers:postgresql'
     }
 }
