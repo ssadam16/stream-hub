@@ -22,7 +22,6 @@ public class DockerClientConfiguration {
     private final DockerProperties dockerProperties;
 
     @Bean
-    @Profile("!test")
     public DockerClient dockerClient() {
 
         String dockerHost = getDockerHost();
