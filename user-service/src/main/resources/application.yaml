@@ -11,16 +11,15 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/stream-hub}     # для проверки iss в токене
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8090/realms/stream-hub/protocol/openid-connect/certs}   # для скачивания публичного ключа
-
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/stream-hub}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8090/realms/stream-hub/protocol/openid-connect/certs}
 
   application:
     name: user-service
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/user-service-db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${DB_PASSWORD:235094}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -54,7 +53,6 @@ security:
       - /swagger-resources/**
       - /actuator/**
 
-
 management:
   tracing:
     sampling:
@@ -70,11 +68,10 @@ springdoc:
   swagger-ui:
     enabled: false
 
-
 otel:
   exporter:
     otlp:
-      endpoint: http://otel-collector:4318
+      endpoint: http://${OTEL_HOST:otel-collector}:4318
   resource:
     attributes:
       service.name: ${spring.application.name}

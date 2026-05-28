@@ -1,0 +1,26 @@
+replicaCount: 1
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+  pullSecret: ""
+
+service:
+  port: 8080
+
+# Нечувствительные переменные окружения
+env: {}
+
+# Секреты — НЕ коммитить значения в репо.
+# В CI передавать через: --set secrets.DB_PASSWORD=$DB_PASSWORD
+# или через отдельный secrets-values файл вне репо.
+secrets: {}
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
