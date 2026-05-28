@@ -14,16 +14,15 @@ variables:
 test:
   stage: test
   image: gradle:8.10-jdk21
-  services:
-    - name: docker:27-dind
-      command: ["--tls=false"]
   variables:
     SPRING_PROFILES_ACTIVE: test
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_DRIVER: overlay2
+    # Testcontainers — явно указываем путь к сокету
+    DOCKER_HOST: "unix:///var/run/docker.sock"
     TESTCONTAINERS_RYUK_DISABLED: "true"
-    TESTCONTAINERS_HOST_OVERRIDE: docker
+    # Говорим TC не искать remote host, использовать сокет
+    TESTCONTAINERS_CHECKS_DISABLE: "true"
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+    GRADLE_OPTS: "-Dorg.gradle.daemon=false"
   cache:
     key: gradle-$CI_COMMIT_REF_SLUG
     paths:
