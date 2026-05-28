@@ -19,8 +19,11 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
+otel:
+  sdk:
+    disabled: true
+
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health
+  tracing:
+    sampling:
+      probability: 0.0

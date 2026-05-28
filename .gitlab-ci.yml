@@ -14,13 +14,17 @@ variables:
 test:
   stage: test
   image: gradle:8.10-jdk21
+  services:
+    - name: docker:27-dind
+      alias: docker
   variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
     SPRING_PROFILES_ACTIVE: test
-    DOCKER_HOST: "unix:///var/run/docker.sock"
     TESTCONTAINERS_RYUK_DISABLED: "true"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
-    # ↓ ВОТ ЭТО ДОБАВИТЬ
-    TESTCONTAINERS_HOST_OVERRIDE: "host.docker.internal"
+    TESTCONTAINERS_HOST_OVERRIDE: "docker"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
   cache:
@@ -28,9 +32,6 @@ test:
     paths:
       - .gradle/
   script:
-    - echo "TESTCONTAINERS_HOST_OVERRIDE=$TESTCONTAINERS_HOST_OVERRIDE"
-    - echo "DOCKER_HOST=$DOCKER_HOST"
-    - cat /etc/hosts
     - gradle test --no-daemon --stacktrace --max-workers=1
 
 # ──────────────────────────────────────────
