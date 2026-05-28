@@ -1,6 +1,4 @@
 spring:
-  datasource:
-    password: test
   jpa:
     hibernate:
       ddl-auto: create-drop   # ← добавь это, перебьёт validate из основного

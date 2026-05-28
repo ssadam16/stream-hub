@@ -11,17 +11,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Duration;
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 class SolutionServiceApplicationTests {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
-            DockerImageName.parse("postgres:latest")
-    )
-            .withDatabaseName("solution-db")
-            .withUsername("test")
-            .withPassword("test");
 
     @Container
     static MongoDBContainer mongo = new MongoDBContainer(
@@ -29,8 +23,13 @@ class SolutionServiceApplicationTests {
     );
 
     @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
+            DockerImageName.parse("postgres:16-alpine")
+    ).withStartupTimeout(Duration.ofSeconds(120));
+
+    @Container
     static KafkaContainer kafka = new KafkaContainer(
-            DockerImageName.parse("apache/kafka:latest")
+            DockerImageName.parse("apache/kafka:3.7.0")  // был latest
     );
 
     @DynamicPropertySource
