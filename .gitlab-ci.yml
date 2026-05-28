@@ -7,6 +7,9 @@ variables:
   REGISTRY: registry.gitlab.com/nongrataqqq/stream-hub
   GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
 
 # ──────────────────────────────────────────
 # STAGE 1 — тесты
@@ -15,18 +18,13 @@ test:
   stage: test
   image: gradle:8.10-jdk21
   services:
-    - name: docker:27-dind
+    - name: docker:27.5.1-dind
       alias: docker
   variables:
-    DOCKER_HOST: "tcp://docker:2375"
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_DRIVER: overlay2
     SPRING_PROFILES_ACTIVE: test
     TESTCONTAINERS_RYUK_DISABLED: "true"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
     TESTCONTAINERS_HOST_OVERRIDE: "docker"
-    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
-    GRADLE_OPTS: "-Dorg.gradle.daemon=false"
   cache:
     key: gradle-$CI_COMMIT_REF_SLUG
     paths:
@@ -39,14 +37,10 @@ test:
 # ──────────────────────────────────────────
 .docker_build: &docker_build
   stage: docker
-  image: docker:27
+  image: docker:27.5.1
   services:
-    - name: docker:27-dind
+    - name: docker:27.5.1-dind
       alias: docker
-  variables:
-    DOCKER_HOST: "tcp://docker:2375"
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_DRIVER: overlay2
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
     - if: $CI_MERGE_REQUEST_ID
