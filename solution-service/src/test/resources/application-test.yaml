@@ -1,8 +1,6 @@
 spring:
   datasource:
     password: test
-  liquibase:
-    enabled: false
   jpa:
     hibernate:
       ddl-auto: create-drop   # ← добавь это, перебьёт validate из основного
