@@ -39,12 +39,17 @@ test:
 # ──────────────────────────────────────────
 .docker_build: &docker_build
   stage: docker
-  image: docker:27  # выровнено с dind в test
+  image: docker:27
   services:
-    - docker:27-dind
+    - name: docker:27-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"  # только main
-    - if: $CI_MERGE_REQUEST_ID         # и MR (для превью)
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_MERGE_REQUEST_ID
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
@@ -57,13 +62,11 @@ test:
         -t $REGISTRY/$SERVICE_NAME:latest \
         .
     - docker push $REGISTRY/$SERVICE_NAME:$CI_COMMIT_SHA
-    # latest пушим только из main
     - |
       if [ "$CI_COMMIT_BRANCH" = "main" ]; then
         docker push $REGISTRY/$SERVICE_NAME:latest
       fi
   after_script:
-    # Сканирование на уязвимости
     - docker run --rm aquasec/trivy:latest image
       --exit-code 0
       --severity HIGH,CRITICAL
