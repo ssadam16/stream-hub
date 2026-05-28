@@ -30,10 +30,14 @@ class UserServiceApplicationTests {
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
+        System.out.println(">>> POSTGRES URL: " + postgres.getJdbcUrl());
+        System.out.println(">>> KAFKA: " + kafka.getBootstrapServers());
+
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
     }
 
     @Test

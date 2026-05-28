@@ -30,8 +30,12 @@ class PlagiarismServiceApplicationTests {
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
+        System.out.println(">>> MONGO URL: " + mongo.getReplicaSetUrl());
+        System.out.println(">>> KAFKA: " + kafka.getBootstrapServers());
+
         registry.add("spring.data.mongodb.uri", mongo::getReplicaSetUrl);
         registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
     }
 
     @Test
