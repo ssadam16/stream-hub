@@ -100,7 +100,7 @@ docker:code-executor-service:
 # ──────────────────────────────────────────
 .helm_deploy: &helm_deploy
   stage: deploy
-  image: alpine/helm:3.17.2
+  image: dtzar/helm-kubectl:3.17.3
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
