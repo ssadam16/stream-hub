@@ -28,7 +28,7 @@ test:
     paths:
       - .gradle/
   script:
-    - docker run --rm alpine sh -c "cat /etc/hosts"
+    - cat /etc/hosts
     - gradle test --no-daemon --stacktrace --max-workers=1
 
 # ──────────────────────────────────────────
