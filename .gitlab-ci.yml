@@ -7,39 +7,43 @@ variables:
   REGISTRY: registry.gitlab.com/nongrataqqq/stream-hub
   GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
 
 # ──────────────────────────────────────────
 # STAGE 1 — тесты
 # ──────────────────────────────────────────
 test:
   stage: test
-  image: gradle:8.10-jdk21  # совпадает с Dockerfile
+  image: gradle:8.10-jdk21
   services:
-    - name: docker:27-dind
+    - name: docker:27.5.1-dind
       alias: docker
   variables:
     SPRING_PROFILES_ACTIVE: test
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
     TESTCONTAINERS_RYUK_DISABLED: "true"
+    TESTCONTAINERS_CHECKS_DISABLE: "true"
+    TESTCONTAINERS_HOST_OVERRIDE: "docker"
   cache:
     key: gradle-$CI_COMMIT_REF_SLUG
     paths:
       - .gradle/
   script:
-    - gradle test --no-daemon --stacktrace
+    - gradle test --no-daemon --stacktrace --max-workers=1
 
 # ──────────────────────────────────────────
 # STAGE 2 — сборка и публикация образов
 # ──────────────────────────────────────────
 .docker_build: &docker_build
   stage: docker
-  image: docker:27  # выровнено с dind в test
+  image: docker:27.5.1
   services:
-    - docker:27-dind
+    - name: docker:27.5.1-dind
+      alias: docker
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"  # только main
-    - if: $CI_MERGE_REQUEST_ID         # и MR (для превью)
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_MERGE_REQUEST_ID
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
@@ -52,13 +56,11 @@ test:
         -t $REGISTRY/$SERVICE_NAME:latest \
         .
     - docker push $REGISTRY/$SERVICE_NAME:$CI_COMMIT_SHA
-    # latest пушим только из main
     - |
       if [ "$CI_COMMIT_BRANCH" = "main" ]; then
         docker push $REGISTRY/$SERVICE_NAME:latest
       fi
   after_script:
-    # Сканирование на уязвимости
     - docker run --rm aquasec/trivy:latest image
       --exit-code 0
       --severity HIGH,CRITICAL
@@ -96,88 +98,25 @@ docker:code-executor-service:
     SERVICE_NAME: code-executor-service
 
 # ──────────────────────────────────────────
-# STAGE 3 — деплой через Helm
+# STAGE 3 — деплой через Docker Compose
 # ──────────────────────────────────────────
-.helm_deploy: &helm_deploy
+deploy:
   stage: deploy
-  image: dtzar/helm-kubectl:3.17.3
+  image: alpine:latest
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+  needs:
+    - docker:api-gateway
+    - docker:user-service
+    - docker:task-service
+    - docker:solution-service
+    - docker:plagiarism-service
+    - docker:code-executor-service
   before_script:
-    - mkdir -p ~/.kube
-    - echo $KUBE_CONFIG_BASE64 | base64 -d > ~/.kube/config
-
-deploy:api-gateway:
-  <<: *helm_deploy
-  needs: [docker:api-gateway]  # не ждём остальные docker jobs
-  variables:
-    SERVICE_NAME: api-gateway
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - ssh-keyscan 94.232.43.131 >> ~/.ssh/known_hosts
   script:
-    - helm upgrade --install $SERVICE_NAME ./helm/microservice
-      --values ./helm/values/${SERVICE_NAME}.yaml
-      --set image.tag=$CI_COMMIT_SHA
-      --set secrets.GATEWAY_KEYCLOAK_CLIENT_SECRET=$GATEWAY_KEYCLOAK_CLIENT_SECRET
-      --namespace stream-hub --create-namespace --wait --timeout 5m
-
-deploy:user-service:
-  <<: *helm_deploy
-  needs: [docker:user-service]
-  variables:
-    SERVICE_NAME: user-service
-  script:
-    - helm upgrade --install $SERVICE_NAME ./helm/microservice
-      --values ./helm/values/${SERVICE_NAME}.yaml
-      --set image.tag=$CI_COMMIT_SHA
-      --set secrets.DB_PASSWORD=$SECRET_DB_PASSWORD
-      --namespace stream-hub --create-namespace --wait --timeout 5m
-
-deploy:task-service:
-  <<: *helm_deploy
-  needs: [docker:task-service]
-  variables:
-    SERVICE_NAME: task-service
-  script:
-    - helm upgrade --install $SERVICE_NAME ./helm/microservice
-      --values ./helm/values/${SERVICE_NAME}.yaml
-      --set image.tag=$CI_COMMIT_SHA
-      --set secrets.DB_PASSWORD=$SECRET_DB_PASSWORD
-      --namespace stream-hub --create-namespace --wait --timeout 5m
-
-deploy:solution-service:
-  <<: *helm_deploy
-  needs: [docker:solution-service]
-  variables:
-    SERVICE_NAME: solution-service
-  script:
-    - helm upgrade --install $SERVICE_NAME ./helm/microservice
-      --values ./helm/values/${SERVICE_NAME}.yaml
-      --set image.tag=$CI_COMMIT_SHA
-      --set secrets.DB_PASSWORD=$SECRET_DB_PASSWORD
-      --set secrets.MONGO_ROOT_USERNAME=$SECRET_MONGO_ROOT_USERNAME
-      --set secrets.MONGO_ROOT_PASSWORD=$SECRET_MONGO_ROOT_PASSWORD
-      --set secrets.SOLUTION_SERVICE_CLIENT_SECRET=$SOLUTION_SERVICE_CLIENT_SECRET
-      --namespace stream-hub --create-namespace --wait --timeout 5m
-
-deploy:plagiarism-service:
-  <<: *helm_deploy
-  needs: [docker:plagiarism-service]
-  variables:
-    SERVICE_NAME: plagiarism-service
-  script:
-    - helm upgrade --install $SERVICE_NAME ./helm/microservice
-      --values ./helm/values/${SERVICE_NAME}.yaml
-      --set image.tag=$CI_COMMIT_SHA
-      --set secrets.MONGO_ROOT_USERNAME=$SECRET_MONGO_ROOT_USERNAME
-      --set secrets.MONGO_ROOT_PASSWORD=$SECRET_MONGO_ROOT_PASSWORD
-      --namespace stream-hub --create-namespace --wait --timeout 5m
-
-deploy:code-executor-service:
-  <<: *helm_deploy
-  needs: [docker:code-executor-service]
-  variables:
-    SERVICE_NAME: code-executor-service
-  script:
-    - helm upgrade --install $SERVICE_NAME ./helm/microservice
-      --values ./helm/values/${SERVICE_NAME}.yaml
-      --set image.tag=$CI_COMMIT_SHA
-      --namespace stream-hub --create-namespace --wait --timeout 5m
+    - ssh bogdan@94.232.43.131 "cd ~/stream-hub && docker compose pull && docker compose up -d"
