@@ -199,9 +199,7 @@ services:
 
   task-service:
     container_name: task-service
-    build:
-      context: .
-      dockerfile: task-service/Dockerfile
+    image: registry.gitlab.com/nongrataqqq/stream-hub/task-service:latest
     depends_on:
       task-service-postgres:
         condition: service_healthy
@@ -218,9 +216,7 @@ services:
 
   solution-service:
     container_name: solution-service
-    build:
-      context: .
-      dockerfile: solution-service/Dockerfile
+    image: registry.gitlab.com/nongrataqqq/stream-hub/solution-service:latest
     depends_on:
       solution-service-postgres:
         condition: service_healthy
@@ -248,9 +244,7 @@ services:
 
   code-executor-service:
     container_name: code-executor-service
-    build:
-      context: .
-      dockerfile: code-executor-service/Dockerfile
+    image: registry.gitlab.com/nongrataqqq/stream-hub/code-executor-service:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
@@ -267,10 +261,7 @@ services:
       - streamhub-network
 
   plagiarism-service:
-    container_name: plagiarism-service
-    build:
-      context: .
-      dockerfile: plagiarism-service/Dockerfile
+    image: registry.gitlab.com/nongrataqqq/stream-hub/plagiarism-service:latest
     depends_on:
       mongodb:
         condition: service_healthy
@@ -292,12 +283,10 @@ services:
 
   user-service:
     container_name: user-service
-    build:
-      context: .
-      dockerfile: user-service/Dockerfile
+    image: registry.gitlab.com/nongrataqqq/stream-hub/user-service:latest
     depends_on:
       user-service-postgres:
-          condition: service_healthy
+        condition: service_healthy
       keycloak:
         condition: service_healthy
     environment:
@@ -314,9 +303,7 @@ services:
 
   api-gateway:
     container_name: api-gateway
-    build:
-      context: .
-      dockerfile: api-gateway/Dockerfile
+    image: registry.gitlab.com/nongrataqqq/stream-hub/api-gateway:latest
     ports:
       - "8080:8080"
     depends_on:
