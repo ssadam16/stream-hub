@@ -79,7 +79,6 @@ public class TaskMapper {
                 .build();
     }
 
-    /** Full test set including hidden — used for code execution. */
     public List<TestCasePublic> toExecutorPayload(List<TestCase> cases) {
         if (cases == null || cases.isEmpty()) {
             return Collections.emptyList();
@@ -104,8 +103,6 @@ public class TaskMapper {
                 .explanation(req.explanation())
                 .build();
     }
-
-    // --- helpers ---
 
     private TaskStats stats(Task t) {
         return taskUserStatsRepository.getTaskStatsByTaskId(t.getId());

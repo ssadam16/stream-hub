@@ -10,6 +10,7 @@ import com.technokratos.common.handler.exceptions.AccessDeniedException;
 import com.technokratos.securityspringbootstarter.SecurityUtil;
 import com.technokratos.solutionservice.client.TaskClient;
 import com.technokratos.solutionservice.dto.SolutionRequest;
+import com.technokratos.solutionservice.mapper.SolutionMapper;
 import com.technokratos.solutionservice.model.OutboxEvent;
 import com.technokratos.solutionservice.model.SolutionEntity;
 import com.technokratos.solutionservice.model.SolutionSource;
@@ -26,8 +27,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+import java.time.Instant;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
@@ -51,6 +54,8 @@ class SolutionServiceUnitTest {
     private ObjectMapper objectMapper;
     @Mock
     private SecurityUtil securityUtil;
+    @Mock
+    private SolutionMapper solutionMapper;
 
     @InjectMocks
     private SolutionService solutionService;
@@ -189,19 +194,37 @@ class SolutionServiceUnitTest {
     @Test
     @DisplayName("getMyCompletedTasks() handles missing task in batch response")
     void getMyCompletedTasks_HandlesMissingTaskInBatch() {
-        UserTaskSummary summary = new UserTaskSummary(taskId, null, 5, 2);
+        UserTaskSummary summary = new UserTaskSummary(taskId, Instant.now(), 5, 2);
         Page<UserTaskSummary> summaries = new PageImpl<>(List.of(summary));
 
-        when(solutionRepository.findUserTaskSummaries(userId, PageRequest.of(0, 10)))
-                .thenReturn(summaries);
+        SolutionEntity solution = SolutionEntity.builder()
+                .id(UUID.randomUUID())
+                .taskId(taskId)
+                .userId(userId)
+                .status(SolutionStatus.COMPLETED)
+                .language(ProgrammingLanguage.JAVA)
+                .build();
 
+        when(solutionRepository.findUserTaskSummaries(eq(userId), any(Pageable.class)))
+                .thenReturn(summaries);
         when(taskClient.getBatch(anyList())).thenReturn(Collections.emptyMap());
+        when(solutionRepository.findAllByUserIdAndTaskIdIn(eq(userId), anyList()))
+                .thenReturn(List.of(solution));
+        when(solutionMapper.toShortView(any(SolutionEntity.class)))
+                .thenReturn(SolutionShortView.builder()
+                        .id(solution.getId())
+                        .taskId(solution.getTaskId())
+                        .language(solution.getLanguage())
+                        .status(solution.getStatus())
+                        .createdAt(Instant.now())
+                        .updatedAt(Instant.now())
+                        .build());
 
         PageResponse<CompletedTaskView> result = solutionService.getMyCompletedTasks(userId, PageRequest.of(0, 10));
 
         assertThat(result).isNotNull();
         assertThat(result.content()).hasSize(1);
-        assertThat(result.content().get(0).task()).isNull();
+        assertThat(result.content().getFirst().task()).isNull();
     }
 
     private TaskAdminView createTaskAdminView() {

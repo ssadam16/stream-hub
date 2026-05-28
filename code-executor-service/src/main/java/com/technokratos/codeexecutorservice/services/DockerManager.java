@@ -194,7 +194,6 @@ public class DockerManager {
 
     public ExecResult execWithStdin(String containerId, String input, int timeoutMs, String... command) {
         try {
-            // Экранируем input для shell
             String escapedInput = input.replace("'", "'\\''");
 
 
@@ -208,7 +207,7 @@ public class DockerManager {
             var execCreateResp = dockerClient.execCreateCmd(containerId)
                     .withCmd(wrappedCommand)
                     .withWorkingDir("/workspace")
-                    .withAttachStdin(false)  // ← не нужен stdin через pipe
+                    .withAttachStdin(false)
                     .withAttachStdout(true)
                     .withAttachStderr(true)
                     .exec();

@@ -37,7 +37,6 @@ public class OutboxPublisher {
         
         for (OutboxEvent event : events) {
             try {
-                // Определяем топик и отправляем
                 Object payload = deserializePayload(event);
                 kafkaTemplate.send(event.getTopic(), event.getMessageKey(), payload)
                     .get(5, TimeUnit.SECONDS);

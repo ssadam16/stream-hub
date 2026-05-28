@@ -10,10 +10,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Admin view of a task — includes draft/archived tasks and all test cases
- * (including hidden). Returned by /api/v1/admin/tasks/**.
- */
 @Builder
 public record TaskAdminView(
         UUID id,

@@ -119,7 +119,6 @@ public class SolutionService {
                         .build()
         );
 
-        // 3. Сохраняем код решения в Mongo **вне** основной транзакции
         saveSolutionSourceAsync(solutionId, taskId, userId, dto);
 
         log.info("Solution {} submitted and execution requested via outbox", solutionId);
@@ -287,7 +286,6 @@ public class SolutionService {
     }
 
     private void saveSolutionSourceAsync(UUID solutionId, UUID taskId, UUID userId, SolutionRequest dto) {
-        // Можно запустить в отдельном потоке или просто синхронно после коммита
         try {
             mongoSolutionRepository.save(SolutionSource.builder()
                     .solutionId(solutionId)
