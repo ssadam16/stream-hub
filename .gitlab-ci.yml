@@ -16,11 +16,11 @@ test:
   image: gradle:8.10-jdk21
   variables:
     SPRING_PROFILES_ACTIVE: test
-    # Testcontainers — явно указываем путь к сокету
     DOCKER_HOST: "unix:///var/run/docker.sock"
     TESTCONTAINERS_RYUK_DISABLED: "true"
-    # Говорим TC не искать remote host, использовать сокет
     TESTCONTAINERS_CHECKS_DISABLE: "true"
+    # ↓ ВОТ ЭТО ДОБАВИТЬ
+    TESTCONTAINERS_HOST_OVERRIDE: "host.docker.internal"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
   cache:
@@ -29,7 +29,6 @@ test:
       - .gradle/
   script:
     - gradle test --no-daemon --stacktrace --max-workers=1
-
 
 # ──────────────────────────────────────────
 # STAGE 2 — сборка и публикация образов
