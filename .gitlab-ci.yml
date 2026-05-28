@@ -28,6 +28,8 @@ test:
     paths:
       - .gradle/
   script:
+    - echo "TESTCONTAINERS_HOST_OVERRIDE=$TESTCONTAINERS_HOST_OVERRIDE"
+    - echo "DOCKER_HOST=$DOCKER_HOST"
     - cat /etc/hosts
     - gradle test --no-daemon --stacktrace --max-workers=1
 

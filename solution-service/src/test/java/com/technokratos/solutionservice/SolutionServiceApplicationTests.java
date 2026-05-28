@@ -37,8 +37,9 @@ class SolutionServiceApplicationTests {
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
         System.out.println(">>> POSTGRES URL: " + postgres.getJdbcUrl());
-        System.out.println(">>> MONGO URL: " + mongo.getReplicaSetUrl());
-        System.out.println(">>> KAFKA: " + kafka.getBootstrapServers());
+        System.out.println(">>> POSTGRES PORT: " + postgres.getMappedPort(5432));
+        System.out.println(">>> ACTIVE PROFILES: " + System.getProperty("spring.profiles.active"));
+        System.out.println(">>> DATASOURCE FROM ENV: " + System.getenv("SPRING_DATASOURCE_URL"));
 
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
