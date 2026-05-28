@@ -1,0 +1,20 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: test-client
+            client-secret: test-secret
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8090/realms/stream-hub
+
+otel:
+  sdk:
+    disabled: true
+
+management:
+  tracing:
+    sampling:
+      probability: 0.0

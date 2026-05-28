@@ -1,3 +1,6 @@
+server:
+  port: 8086
+
 spring:
   application:
     name: plagiarism-service
@@ -9,8 +12,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/stream-hub}     # для проверки iss в токене
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8090/realms/stream-hub/protocol/openid-connect/certs}   # для скачивания публичного ключа
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/stream-hub}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8090/realms/stream-hub/protocol/openid-connect/certs}
 
   kafka:
     bootstrap-servers: ${BOOTSTRAP_SERVERS:localhost:9092,localhost:9094,localhost:9096}
@@ -29,16 +32,10 @@ spring:
       acks: all
     listener:
       missing-topics-fatal: false
-    #      max-attempts: 4
-    #      backoff:
-    #        exponential:
-    #          initial: 1000
-    #          multiplier: 5
-    #          max: 30000
 
   data:
     mongodb:
-      uri: mongodb://${MONGO_ROOT_USERNAME:nongrataqqq}:${MONGO_ROOT_PASSWORD:235094}@localhost:27017/mongo-db?authSource=admin
+      uri: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@${MONGO_HOST:localhost}:27017/mongo-db?authSource=admin
 
 management:
   tracing:
@@ -55,7 +52,6 @@ springdoc:
   swagger-ui:
     enabled: false
 
-
 security:
   starter:
     permit-all:
@@ -66,17 +62,10 @@ security:
       - /swagger-resources/**
       - /actuator/**
 
-
-
 otel:
   exporter:
     otlp:
-      endpoint: http://otel-collector:4318
+      endpoint: http://${OTEL_HOST:otel-collector}:4318
   resource:
     attributes:
       service.name: ${spring.application.name}
-
-
-server:
-  port: 8086
-
