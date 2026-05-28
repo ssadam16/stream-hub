@@ -47,8 +47,31 @@ dependencies {
     implementation 'de.jplag:python-3:6.1.0'
 
     testAnnotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+
+    testImplementation 'org.testcontainers:testcontainers'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:kafka'
+    testImplementation 'org.testcontainers:mongodb'
+    testImplementation 'org.testcontainers:junit-jupiter'
+
+    //убрать 1
+    testImplementation 'org.awaitility:awaitility:4.2.0'
+    testImplementation 'org.awaitility:awaitility'
+
+    testImplementation 'org.assertj:assertj-core:3.24.2'
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+}
+
+tasks.register('integrationTest', Test) {
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+    shouldRunAfter test
 }
