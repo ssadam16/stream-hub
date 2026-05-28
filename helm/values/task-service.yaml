@@ -7,7 +7,7 @@ service:
   port: 8083
 
 env:
-  SPRING_DATASOURCE_URL: "jdbc:postgresql://task-service-postgres:5432/task-service-db"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-postgresql:5432/task-service-db"
   SPRING_DATASOURCE_USERNAME: "laebav"
   BOOTSTRAP_SERVERS: "kafka:9092"
   SOLUTION_SERVICE_URI: "http://solution-service:8084"
