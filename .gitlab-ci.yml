@@ -22,12 +22,14 @@ test:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
     TESTCONTAINERS_RYUK_DISABLED: "true"
+    TESTCONTAINERS_CHECKS_DISABLE: "true"
   cache:
     key: gradle-$CI_COMMIT_REF_SLUG
     paths:
       - .gradle/
   script:
-    - gradle test --no-daemon --stacktrace
+    - gradle test --no-daemon --stacktrace --max-workers=1
+
 
 # ──────────────────────────────────────────
 # STAGE 2 — сборка и публикация образов

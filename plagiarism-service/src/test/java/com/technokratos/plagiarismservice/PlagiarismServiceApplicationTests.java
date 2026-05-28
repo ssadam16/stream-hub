@@ -10,6 +10,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Duration;
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 class PlagiarismServiceApplicationTests {
@@ -17,12 +19,14 @@ class PlagiarismServiceApplicationTests {
     @Container
     static MongoDBContainer mongo = new MongoDBContainer(
             DockerImageName.parse("mongo:6.0")
-    );
+    ).withStartupTimeout(Duration.ofSeconds(180));
 
     @Container
     static KafkaContainer kafka = new KafkaContainer(
-            DockerImageName.parse("apache/kafka:latest")
-    );
+            DockerImageName.parse("apache/kafka:3.8.0")
+    )
+            .withEnv("KAFKA_HEAP_OPTS", "-Xmx256m -Xms256m")
+            .withStartupTimeout(Duration.ofSeconds(180));
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
