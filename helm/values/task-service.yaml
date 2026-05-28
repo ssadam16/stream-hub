@@ -1,0 +1,18 @@
+image:
+  repository: registry.gitlab.com/nongrataqqq/stream-hub/task-service
+  tag: "latest"
+  pullSecret: gitlab-registry
+
+service:
+  port: 8083
+
+env:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://task-service-postgres:5432/task-service-db"
+  SPRING_DATASOURCE_USERNAME: "laebav"
+  BOOTSTRAP_SERVERS: "kafka:9092"
+  SOLUTION_SERVICE_URI: "http://solution-service:8084"
+  KEYCLOAK_ISSUER_URI: "http://94.232.43.131:8090/realms/stream-hub"
+  KEYCLOAK_JWK_SET_URI: "http://keycloak:8080/realms/stream-hub/protocol/openid-connect/certs"
+
+secrets: {}
+# DB_PASSWORD:

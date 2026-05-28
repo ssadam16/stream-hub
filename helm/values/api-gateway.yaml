@@ -1,0 +1,18 @@
+image:
+  repository: registry.gitlab.com/nongrataqqq/stream-hub/api-gateway
+  tag: "latest"
+  pullSecret: gitlab-registry
+
+service:
+  port: 8080
+
+env:
+  TASK_SERVICE_URI: "http://task-service:8083"
+  SOLUTION_SERVICE_URI: "http://solution-service:8084"
+  PLAGIARISM_SERVICE_URI: "http://plagiarism-service:8086"
+  USER_SERVICE_URI: "http://user-service:8081"
+  KEYCLOAK_SERVICE_URI: "http://keycloak:8080"
+  KEYCLOAK_CLIENT_ID: "gateway-client"
+
+secrets: {}
+# KEYCLOAK_CLIENT_SECRET:
