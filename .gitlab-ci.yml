@@ -14,10 +14,16 @@ variables:
 test:
   stage: test
   image: gradle:8.10-jdk21
+  services:
+    - name: docker:27-dind
+      command: ["--tls=false"]
   variables:
     SPRING_PROFILES_ACTIVE: test
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
     TESTCONTAINERS_RYUK_DISABLED: "true"
-    TESTCONTAINERS_HOST_OVERRIDE: "localhost"
+    TESTCONTAINERS_HOST_OVERRIDE: docker
   cache:
     key: gradle-$CI_COMMIT_REF_SLUG
     paths:
