@@ -6,6 +6,7 @@ WORKDIR /app
 COPY settings.gradle build.gradle gradle.properties* ./
 COPY gradle/ ./gradle/
 COPY gradlew .
+RUN chmod +x gradlew
 COPY common/build.gradle ./common/
 COPY code-executor-service/build.gradle ./code-executor-service/
 

@@ -6,6 +6,7 @@ WORKDIR /app
 COPY settings.gradle build.gradle gradle.properties* ./
 COPY gradle/ ./gradle/
 COPY gradlew .
+RUN chmod +x gradlew
 COPY security-spring-boot-starter/build.gradle ./security-spring-boot-starter/
 COPY common/build.gradle ./common/
 COPY user-service/build.gradle ./user-service/
