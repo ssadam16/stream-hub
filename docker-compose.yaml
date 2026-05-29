@@ -197,13 +197,33 @@ services:
     volumes:
       - ./keycloak-export:/opt/keycloak/data/import
 
+  consul:
+    image: hashicorp/consul:latest
+    container_name: consul
+    command: agent -dev -client=0.0.0.0 -ui
+    ports:
+      - "8500:8500"
+    healthcheck:
+      test: [ "CMD", "consul", "members" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - streamhub-network
+
   task-service:
     container_name: task-service
     image: registry.gitlab.com/nongrataqqq/stream-hub/task-service:latest
     depends_on:
+      consul:
+        condition: service_healthy
       task-service-postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
+      CONSUL_HOST: consul
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_URL: jdbc:postgresql://task-service-postgres:5432/task-service-db
       DB_PASSWORD: ${DB_PASSWORD}
@@ -211,6 +231,8 @@ services:
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
       KEYCLOAK_ISSUER_URI: http://94.232.43.131:8090/realms/stream-hub
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/stream-hub/protocol/openid-connect/certs
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     networks:
       - streamhub-network
 
@@ -218,6 +240,8 @@ services:
     container_name: solution-service
     image: registry.gitlab.com/nongrataqqq/stream-hub/solution-service:latest
     depends_on:
+      consul:
+        condition: service_healthy
       solution-service-postgres:
         condition: service_healthy
       mongodb:
@@ -228,7 +252,10 @@ services:
         condition: service_healthy
       kafka-3:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
+      CONSUL_HOST: consul
       TASK_SERVICE_URI: http://task-service:8083
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_URL: jdbc:postgresql://solution-service-postgres:5432/solution-service-db
@@ -239,6 +266,8 @@ services:
       KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/stream-hub/protocol/openid-connect/token
       MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     networks:
       - streamhub-network
 
@@ -248,6 +277,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
+      consul:
+        condition: service_healthy
       kafka-1:
         condition: service_healthy
       kafka-2:
@@ -255,6 +286,7 @@ services:
       kafka-3:
         condition: service_healthy
     environment:
+      CONSUL_HOST: consul
       TASK_SERVICE_URI: http://task-service:8083
       BOOTSTRAP_SERVERS: kafka-1:9090,kafka-2:9090,kafka-3:9090
     networks:
@@ -263,6 +295,8 @@ services:
   plagiarism-service:
     image: registry.gitlab.com/nongrataqqq/stream-hub/plagiarism-service:latest
     depends_on:
+      consul:
+        condition: service_healthy
       mongodb:
         condition: service_healthy
       kafka-1:
@@ -272,6 +306,7 @@ services:
       kafka-3:
         condition: service_healthy
     environment:
+      CONSUL_HOST: consul
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
       MONGO_HOST: mongodb
       MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
@@ -285,11 +320,14 @@ services:
     container_name: user-service
     image: registry.gitlab.com/nongrataqqq/stream-hub/user-service:latest
     depends_on:
+      consul:
+        condition: service_healthy
       user-service-postgres:
         condition: service_healthy
       keycloak:
         condition: service_healthy
     environment:
+      CONSUL_HOST: consul
       OTEL_HOST: otel-collector
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
       KEYCLOAK_ISSUER_URI: http://94.232.43.131:8090/realms/stream-hub
@@ -307,14 +345,17 @@ services:
     ports:
       - "8080:8080"
     depends_on:
+      consul:
+        condition: service_healthy
       keycloak:
         condition: service_healthy
     environment:
+      CONSUL_HOST: consul
       TASK_SERVICE_URI: http://task-service:8083
       PLAGIARISM_SERVICE_URI: http://plagiarism-service:8086
       SOLUTION_SERVICE_URI: http://solution-service:8084
       GATEWAY_KEYCLOAK_CLIENT_SECRET: ${GATEWAY_KEYCLOAK_CLIENT_SECRET}
-      KEYCLOAK_SERVICE_URI: http://keycloak:8080
+      KEYCLOAK_SERVICE_URI: ${KEYCLOAK_SERVICE_URI}
       KEYCLOAK_CLIENT_ID: gateway-client
       OTEL_HOST: otel-collector
     networks:
@@ -388,6 +429,20 @@ services:
       - prometheus-data:/prometheus
     networks:
       - streamhub-network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - streamhub-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   task-service-postgres-data:

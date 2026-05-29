@@ -24,9 +24,7 @@ class PlagiarismServiceApplicationTests {
     @Container
     static KafkaContainer kafka = new KafkaContainer(
             DockerImageName.parse("apache/kafka:3.8.0")
-    )
-            .withEnv("KAFKA_HEAP_OPTS", "-Xmx256m -Xms256m")
-            .withStartupTimeout(Duration.ofSeconds(180));
+    ).withStartupTimeout(Duration.ofSeconds(180));
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {

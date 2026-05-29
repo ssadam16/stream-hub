@@ -6,22 +6,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
-import org.springframework.security.oauth2.jwt.ReactiveJwtDecoders;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -32,19 +30,29 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler accessDeniedHandler;
 
     @Bean
+    @Order(0)
+    public SecurityWebFilterChain publicSecurityFilterChain(ServerHttpSecurity http) {
+        return http
+                .securityMatcher(ServerWebExchangeMatchers.pathMatchers(
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**",
+                        "/webjars/**",
+                        "/swagger-resources/**",
+                        "/actuator/**"
+                ))
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .authorizeExchange(exchanges -> exchanges.anyExchange().permitAll())
+                .build();
+    }
+
+    @Bean
     @Primary
+    @Order(1)
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http, ReactiveJwtDecoder jwtDecoder) {
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers(
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**",
-                                "/webjars/**",
-                                "/swagger-resources/**",
-                                "/actuator/**"
-                        ).permitAll()
                         .pathMatchers("/api/v1/admin/**").hasRole("stream_hub.admin")
                         .pathMatchers(
                                 "/api/v1/tasks/**",
@@ -71,8 +79,13 @@ public class SecurityConfig {
     @Bean
     @Profile("!test")
     public ReactiveJwtDecoder jwtDecoder(
-            @Value("${spring.security.oauth2.client.provider.keycloak.issuer-uri}") String issuerUri) {
-        return ReactiveJwtDecoders.fromIssuerLocation(issuerUri);
+            @Value("${keycloak.jwk-set-uri}") String jwkSetUri,
+            @Value("${keycloak.issuer-uri}") String issuerUri) {
+        NimbusReactiveJwtDecoder jwtDecoder = NimbusReactiveJwtDecoder
+                .withJwkSetUri(jwkSetUri)
+                .build();
+        jwtDecoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuerUri));
+        return jwtDecoder;
     }
 
     @Bean

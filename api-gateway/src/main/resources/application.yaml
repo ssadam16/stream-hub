@@ -23,79 +23,91 @@ spring:
             scope: openid, profile, email
         provider:
           keycloak:
-            issuer-uri: ${KEYCLOAK_SERVICE_URI:http://localhost:8090}/realms/stream-hub
+            authorization-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/stream-hub}/protocol/openid-connect/auth
+            token-uri: ${KEYCLOAK_SERVICE_URI:http://localhost:8090}/realms/stream-hub/protocol/openid-connect/token
+            jwk-set-uri: ${KEYCLOAK_SERVICE_URI:http://localhost:8090}/realms/stream-hub/protocol/openid-connect/certs
+            user-info-uri: ${KEYCLOAK_SERVICE_URI:http://localhost:8090}/realms/stream-hub/protocol/openid-connect/userinfo
+            user-name-attribute: preferred_username
 
 
   cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+      discovery:
+        fail-fast: false
+        prefer-ip-address: true
+        health-check-path: /actuator/health
+        instance-id: ${spring.application.name}-${random.uuid}
     gateway:
       server:
         webflux:
           routes:
             - id: solution-service
-              uri: ${SOLUTION_SERVICE_URI:http://localhost:8084}
+              uri: lb://solution-service
               predicates:
                 - Path=/api/v1/solutions/**
               filters:
                 - TokenRelay=
 
             - id: task-service
-              uri: ${TASK_SERVICE_URI:http://localhost:8083}
+              uri: lb://task-service
               predicates:
                 - Path=/api/v1/tasks/**
               filters:
                 - TokenRelay=
 
             - id: plagiarism-service
-              uri: ${PLAGIARISM_SERVICE_URI:http://localhost:8086}
+              uri: lb://plagiarism-service
               predicates:
                 - Path=/api/v1/plagiarism/**
               filters:
                 - TokenRelay=
 
             - id: user-service
-              uri: ${USER_SERVICE_URI:http://localhost:8081}
+              uri: lb://user-service
               predicates:
                 - Path=/api/v1/statistics/**
               filters:
                 - TokenRelay=
 
             - id: task-service-admin
-              uri: ${TASK_SERVICE_URI:http://localhost:8083}
+              uri: lb://task-service
               predicates:
                 - Path=/api/v1/admin/tasks/**
               filters:
                 - TokenRelay=
 
             - id: tags
-              uri: ${TASK_SERVICE_URI:http://localhost:8083}
+              uri: lb://task-service
               predicates:
                 - Path=/api/v1/tags/**
               filters:
                 - TokenRelay=
 
             - id: task-service-docs
-              uri: ${TASK_SERVICE_URI:http://localhost:8083}
+              uri: lb://task-service
               predicates:
                 - Path=/v3/api-docs/task-service
               filters:
                 - RewritePath=/v3/api-docs/task-service, /v3/api-docs
 
             - id: user-service-docs
-              uri: ${USER_SERVICE_URI:http://localhost:8081}
+              uri: lb://user-service
               predicates:
                 - Path=/v3/api-docs/user-service
               filters:
                 - RewritePath=/v3/api-docs/user-service, /v3/api-docs
 
             - id: solution-service-docs
-              uri: ${SOLUTION_SERVICE_URI:http://localhost:8084}
+              uri: lb://solution-service
               predicates:
                 - Path=/v3/api-docs/solution-service
               filters:
                 - RewritePath=/v3/api-docs/solution-service, /v3/api-docs
 
             - id: plagiarism-service-docs
-              uri: ${PLAGIARISM_SERVICE_URI:http://localhost:8086}
+              uri: lb://plagiarism-service
               predicates:
                 - Path=/v3/api-docs/plagiarism-service
               filters:
@@ -109,6 +121,10 @@ management:
     web:
       exposure:
         include: health,prometheus,info
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
 springdoc:
   swagger-ui:
@@ -123,6 +139,10 @@ springdoc:
         url: /v3/api-docs/plagiarism-service
   api-docs:
     enabled: true
+
+keycloak:
+  issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/stream-hub}
+  jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8090/realms/stream-hub/protocol/openid-connect/certs}
 
 otel:
   exporter:

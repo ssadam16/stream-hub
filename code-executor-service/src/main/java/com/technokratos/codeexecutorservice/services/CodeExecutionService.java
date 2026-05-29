@@ -7,13 +7,10 @@ import com.technokratos.common.events.CodeExecutionResult;
 import com.technokratos.common.topics.KafkaTopics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.DltHandler;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.annotation.RetryableTopic;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -36,7 +33,6 @@ public class CodeExecutionService {
             CodeExecutionResult executionResult = dockerExecutionService.executeCode(event.solutionId(), event);
 
             if (executionResult.status() == SolutionStatus.INTERNAL_ERROR) {
-                //Уйдет в catch(), так что думаю рантайм итс окей
                 throw new RuntimeException("Internal error during execution: " + executionResult.errorMessage());
             }
 
@@ -63,7 +59,7 @@ public class CodeExecutionService {
                 event.solutionId(), errorMessage);
 
         // Отправить INTERNAL_ERROR результат чтобы юзер не ждал вечно
-        kafkaTemplate.send("code-execution-results", event.solutionId(),
+        kafkaTemplate.send(KafkaTopics.TOPIC_EXECUTION_RESULTS, event.solutionId(),
                 CodeExecutionResult.builder()
                         .solutionId(event.solutionId())
                         .status(SolutionStatus.INTERNAL_ERROR)

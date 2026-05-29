@@ -17,6 +17,7 @@ import com.technokratos.solutionservice.model.SolutionSource;
 import com.technokratos.solutionservice.repository.MongoSolutionRepository;
 import com.technokratos.solutionservice.repository.OutboxEventRepository;
 import com.technokratos.solutionservice.repository.SolutionRepository;
+import com.technokratos.solutionservice.util.SolutionUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,9 +25,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -42,20 +43,15 @@ import static org.mockito.Mockito.*;
 @DisplayName("SolutionService Unit Test")
 class SolutionServiceUnitTest {
 
-    @Mock
-    private SolutionRepository solutionRepository;
-    @Mock
-    private MongoSolutionRepository mongoSolutionRepository;
-    @Mock
-    private OutboxEventRepository outboxEventRepository;
-    @Mock
-    private TaskClient taskClient;
-    @Mock
-    private ObjectMapper objectMapper;
-    @Mock
-    private SecurityUtil securityUtil;
-    @Mock
-    private SolutionMapper solutionMapper;
+    @Mock private SolutionRepository solutionRepository;
+    @Mock private MongoSolutionRepository mongoSolutionRepository;
+    @Mock private OutboxEventRepository outboxEventRepository;
+    @Mock private TaskClient taskClient;
+    @Mock private ObjectMapper objectMapper;
+    @Mock private SecurityUtil securityUtil;
+    @Mock private SolutionMapper solutionMapper;
+    @Mock private SolutionUtil solutionUtil;
+    @Mock private CacheManager cacheManager;
 
     @InjectMocks
     private SolutionService solutionService;
@@ -90,7 +86,6 @@ class SolutionServiceUnitTest {
         UUID result = solutionService.submit(request, taskId, userId);
 
         assertThat(result).isEqualTo(solutionId);
-
         verify(solutionRepository).save(any());
         verify(outboxEventRepository).save(any(OutboxEvent.class));
         verify(mongoSolutionRepository).save(any(SolutionSource.class));
@@ -131,6 +126,7 @@ class SolutionServiceUnitTest {
         when(solutionRepository.findById(solutionId)).thenReturn(Optional.of(existing));
         when(solutionRepository.save(any(SolutionEntity.class))).thenReturn(existing);
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        when(cacheManager.getCache(any())).thenReturn(null);
 
         solutionService.onExecutionResult(result);
 
@@ -143,6 +139,7 @@ class SolutionServiceUnitTest {
     void onExecutionResult_SkipsFinalStatus() {
         SolutionEntity existing = SolutionEntity.builder()
                 .status(SolutionStatus.WRONG_ANSWER)
+                .userId(userId)
                 .build();
 
         CodeExecutionResult result = CodeExecutionResult.builder()
@@ -151,6 +148,7 @@ class SolutionServiceUnitTest {
                 .build();
 
         when(solutionRepository.findById(solutionId)).thenReturn(Optional.of(existing));
+        when(cacheManager.getCache(any())).thenReturn(null);
 
         solutionService.onExecutionResult(result);
 
@@ -184,6 +182,7 @@ class SolutionServiceUnitTest {
         when(securityUtil.isOwner(any(), any())).thenReturn(true);
         when(mongoSolutionRepository.findBySolutionIdAndUserId(solutionId, userId))
                 .thenReturn(Optional.of(source));
+        when(jwt.getSubject()).thenReturn(userId.toString());
 
         solutionService.delete(solutionId, jwt);
 
@@ -195,7 +194,6 @@ class SolutionServiceUnitTest {
     @DisplayName("getMyCompletedTasks() handles missing task in batch response")
     void getMyCompletedTasks_HandlesMissingTaskInBatch() {
         UserTaskSummary summary = new UserTaskSummary(taskId, Instant.now(), 5, 2);
-        Page<UserTaskSummary> summaries = new PageImpl<>(List.of(summary));
 
         SolutionEntity solution = SolutionEntity.builder()
                 .id(UUID.randomUUID())
@@ -205,8 +203,7 @@ class SolutionServiceUnitTest {
                 .language(ProgrammingLanguage.JAVA)
                 .build();
 
-        when(solutionRepository.findUserTaskSummaries(eq(userId), any(Pageable.class)))
-                .thenReturn(summaries);
+        when(solutionRepository.findAllUserTaskSummaries(userId)).thenReturn(List.of(summary));
         when(taskClient.getBatch(anyList())).thenReturn(Collections.emptyMap());
         when(solutionRepository.findAllByUserIdAndTaskIdIn(eq(userId), anyList()))
                 .thenReturn(List.of(solution));
@@ -220,11 +217,11 @@ class SolutionServiceUnitTest {
                         .updatedAt(Instant.now())
                         .build());
 
-        PageResponse<CompletedTaskView> result = solutionService.getMyCompletedTasks(userId, PageRequest.of(0, 10));
+        List<CompletedTaskView> result = solutionService.getMyCompletedTasks(userId);
 
         assertThat(result).isNotNull();
-        assertThat(result.content()).hasSize(1);
-        assertThat(result.content().getFirst().task()).isNull();
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().task()).isNull();
     }
 
     private TaskAdminView createTaskAdminView() {

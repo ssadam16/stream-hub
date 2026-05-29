@@ -1301,11 +1301,16 @@
         "http://94.232.43.131:8080/*",
         "http://94.232.43.131:8080/login/oauth2/code/*",
         "http://94.232.43.131:8080/callback",
-        "https://oauth.pstmn.io/v1/callback"
+        "https://oauth.pstmn.io/v1/callback",
+        "http://localhost:8080/*",
+        "http://localhost:8080/login/oauth2/code/*",
+        "http://localhost:8080/callback"
       ],
       "webOrigins": [
         "http://api-gateway:8080",
-        "http://94.232.43.131:8080"
+        "http://94.232.43.131:8080",
+        "http://localhost:8080",
+        "+"
       ],
       "notBefore": 0,
       "bearerOnly": false,

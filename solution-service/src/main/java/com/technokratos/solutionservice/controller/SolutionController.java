@@ -7,16 +7,10 @@ import com.technokratos.common.dto.SolutionView;
 import com.technokratos.solutionservice.api.SolutionApi;
 import com.technokratos.solutionservice.dto.SolutionRequest;
 import com.technokratos.solutionservice.service.SolutionService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
@@ -51,5 +45,4 @@ public class SolutionController implements SolutionApi {
     public void delete(UUID solutionId, Jwt jwt) {
         service.delete(solutionId, jwt);
     }
-    //getAllCompletedSolutionsByTaskId
 }

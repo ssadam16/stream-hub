@@ -1,4 +1,6 @@
 spring:
+  cache:
+    type: none
   flyway:
     enabled: false
   jpa:

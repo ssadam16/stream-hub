@@ -40,25 +40,18 @@ dependencies {
     implementation 'org.springframework.kafka:spring-kafka'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.16'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.kafka:spring-kafka-test'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
+    runtimeOnly 'org.postgresql:postgresql'
+
+    testImplementation 'org.postgresql:postgresql'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
-
-    testImplementation 'org.testcontainers:testcontainers'
-    testImplementation 'org.testcontainers:postgresql'
-    testImplementation 'org.testcontainers:kafka'
-    testImplementation 'org.testcontainers:junit-jupiter'
-
-    testImplementation 'org.testcontainers:mongodb'
-
-    testImplementation 'org.awaitility:awaitility:4.2.0'
-
-    testImplementation 'org.assertj:assertj-core:3.24.2'
 }
 
 tasks.named('test') {

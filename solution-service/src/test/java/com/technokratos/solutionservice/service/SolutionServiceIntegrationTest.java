@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -66,7 +67,9 @@ class SolutionServiceIntegrationTest {
         registry.add("spring.flyway.enabled", () -> "false");
         registry.add("spring.data.mongodb.uri", mongo::getReplicaSetUrl);
         registry.add("spring.autoconfigure.exclude",
-                () -> "org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration");
+                () -> "org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration" +
+                      ",org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration" +
+                      ",org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration");
     }
 
     @MockBean
@@ -74,6 +77,9 @@ class SolutionServiceIntegrationTest {
 
     @MockBean
     private SecurityUtil securityUtil;
+
+    @MockBean
+    private CacheManager cacheManager;
 
     @Autowired
     private SolutionService solutionService;
@@ -212,11 +218,11 @@ class SolutionServiceIntegrationTest {
         solution.setUpdatedAt(Instant.now());
         solutionRepository.save(solution);
 
-        var result = solutionService.getMyCompletedTasks(userId, PageRequest.of(0, 10));
+        var result = solutionService.getMyCompletedTasks(userId);
 
-        assertThat(result.content()).isNotEmpty();
-        assertThat(result.content().get(0).task().id()).isEqualTo(taskId);
-        assertThat(result.content().get(0).attemptsCount()).isEqualTo(1);
+        assertThat(result).isNotEmpty();
+        assertThat(result.getFirst().task().id()).isEqualTo(taskId);
+        assertThat(result.getFirst().attemptsCount()).isEqualTo(1);
     }
 
     @Test

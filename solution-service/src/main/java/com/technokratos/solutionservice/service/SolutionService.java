@@ -3,8 +3,6 @@ package com.technokratos.solutionservice.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.technokratos.common.dto.*;
-import com.technokratos.common.dto.tests.TestCaseFull;
-import com.technokratos.common.dto.tests.TestCasePublic;
 import com.technokratos.common.enums.OutboxEventStatus;
 import com.technokratos.common.enums.SolutionStatus;
 import com.technokratos.common.events.CodeExecutionRequest;
@@ -27,29 +25,34 @@ import com.technokratos.solutionservice.repository.SolutionRepository;
 import com.technokratos.solutionservice.util.SolutionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class SolutionService {
+
+    private static final Set<SolutionStatus> FINAL_STATUSES = Set.of(
+            SolutionStatus.COMPLETED,
+            SolutionStatus.WRONG_ANSWER,
+            SolutionStatus.TIME_LIMIT_EXCEEDED,
+            SolutionStatus.MEMORY_LIMIT_EXCEEDED,
+            SolutionStatus.COMPILATION_ERROR,
+            SolutionStatus.RUNTIME_ERROR,
+            SolutionStatus.INTERNAL_ERROR
+    );
 
     private final SecurityUtil securityUtil;
     private final SolutionUtil solutionUtil;
@@ -59,8 +62,12 @@ public class SolutionService {
     private final TaskClient taskClient;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final CacheManager cacheManager;
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "completedTasks", key = "#userId")
+    })
     public UUID submit(SolutionRequest dto, UUID taskId, UUID userId) {
         log.info("User {} submitting task {}", userId, taskId);
 
@@ -93,7 +100,7 @@ public class SolutionService {
                             .build()
             );
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize CodeExecutionRequests ", e);
+            throw new RuntimeException("Failed to serialize CodeExecutionRequest", e);
         }
 
         outboxEventRepository.save(
@@ -107,14 +114,14 @@ public class SolutionService {
                         .build()
         );
 
-        // 3. Сохраняем код решения в Mongo вне основной транзакции
-        saveSolutionSourceAsync(solutionId, taskId, userId, dto);
+        saveSolutionSource(solutionId, taskId, userId, dto);
 
         log.info("Solution {} submitted and execution requested via outbox", solutionId);
         return solutionId;
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "solutions", key = "#solutionId")
     public SolutionView getById(UUID solutionId, Jwt jwt) {
         SolutionEntity s = solutionRepository.findById(solutionId)
                 .orElseThrow(() -> new SolutionNotFound(solutionId));
@@ -142,6 +149,10 @@ public class SolutionService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "solutions", key = "#id"),
+            @CacheEvict(value = "completedTasks", key = "#jwt.subject")
+    })
     public void delete(UUID id, Jwt jwt) {
         SolutionEntity s = solutionRepository.findById(id)
                 .orElseThrow(() -> new SolutionNotFound(id));
@@ -155,8 +166,8 @@ public class SolutionService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "completedTasks", key = "#userId")
     public List<CompletedTaskView> getMyCompletedTasks(UUID userId) {
-
         List<UserTaskSummary> summaries = solutionRepository.findAllUserTaskSummaries(userId);
 
         if (summaries.isEmpty()) {
@@ -186,8 +197,93 @@ public class SolutionService {
                 .toList();
     }
 
-    private void saveSolutionSourceAsync(UUID solutionId, UUID taskId, UUID userId, SolutionRequest dto) {
-        // Можно запустить в отдельном потоке или просто синхронно после коммита
+    @Transactional
+    @CacheEvict(value = "solutions", key = "#result.solutionId()")
+    public void onExecutionResult(CodeExecutionResult result) {
+        UUID solutionId = result.solutionId();
+        log.info("Got execution result solution={} status={}", solutionId, result.status());
+
+        SolutionEntity solution = solutionRepository.findById(solutionId)
+                .orElseThrow(() -> new SolutionNotFound(solutionId));
+
+        var completedTasksCache = cacheManager.getCache("completedTasks");
+        if (completedTasksCache != null) {
+            completedTasksCache.evict(solution.getUserId());
+        }
+
+        if (FINAL_STATUSES.contains(solution.getStatus())) {
+            log.warn("Solution {} already in final status {}, skipping duplicate", solutionId, solution.getStatus());
+            return;
+        }
+
+        if (solution.getStatus() == result.status() &&
+                Objects.equals(solution.getPassedTests(), result.passedTests())) {
+            log.info("Duplicate identical result for solution {}, skipping", solutionId);
+            return;
+        }
+
+        log.info("Solution difficulty: {}, language: {}, points: {}",
+                solution.getDifficulty(), solution.getLanguage(), solution.getPoints());
+
+        solution.setStatus(result.status());
+        solution.setPassedTests(result.passedTests());
+        solution.setTotalTests(result.totalTests());
+        solution.setTotalTimeMs(result.totalTimeMs());
+        solution.setTestResults(result.testResults());
+        solutionRepository.save(solution);
+
+        if (FINAL_STATUSES.contains(result.status())) {
+            try {
+                String statsPayload = objectMapper.writeValueAsString(
+                        TaskSubmissionEvent.builder()
+                                .solutionId(solutionId)
+                                .taskId(solution.getTaskId())
+                                .userId(solution.getUserId())
+                                .completed(result.status() == SolutionStatus.COMPLETED)
+                                .timestamp(Instant.now())
+                                .points(solution.getPoints())
+                                .language(solution.getLanguage())
+                                .difficulty(solution.getDifficulty())
+                                .build()
+                );
+                outboxEventRepository.save(OutboxEvent.builder()
+                        .topic(KafkaTopics.TOPIC_TASK_STATS)
+                        .aggregateId(solutionId)
+                        .messageKey(solution.getUserId())
+                        .status(OutboxEventStatus.NEW)
+                        .eventType("TASK_SUBMISSION")
+                        .payload(statsPayload)
+                        .build());
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Failed to serialize TaskSubmissionEvent", e);
+            }
+        }
+
+        if (result.status() == SolutionStatus.COMPLETED) {
+            try {
+                String plagPayload = objectMapper.writeValueAsString(
+                        SolutionCompletedEvent.builder()
+                                .solutionId(solutionId)
+                                .taskId(solution.getTaskId())
+                                .userId(solution.getUserId())
+                                .language(solution.getLanguage())
+                                .build()
+                );
+                outboxEventRepository.save(OutboxEvent.builder()
+                        .topic(KafkaTopics.TOPIC_SOLUTION_COMPLETED)
+                        .aggregateId(solutionId)
+                        .messageKey(solutionId)
+                        .status(OutboxEventStatus.NEW)
+                        .eventType("SOLUTION_COMPLETED")
+                        .payload(plagPayload)
+                        .build());
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Failed to serialize SolutionCompletedEvent", e);
+            }
+        }
+    }
+
+    private void saveSolutionSource(UUID solutionId, UUID taskId, UUID userId, SolutionRequest dto) {
         try {
             mongoSolutionRepository.save(SolutionSource.builder()
                     .solutionId(solutionId)
@@ -200,11 +296,9 @@ public class SolutionService {
                     .build());
 
             log.debug("Solution source saved to Mongo for solution {}", solutionId);
-
         } catch (Exception e) {
             log.error("Failed to save solution source to Mongo for solution {}. " +
                     "Solution exists in Postgres and outbox event was created.", solutionId, e);
-            // Можно добавить метрику или отправить в отдельный outbox для повторной попытки
         }
     }
 

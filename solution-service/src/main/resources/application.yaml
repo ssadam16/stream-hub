@@ -25,6 +25,15 @@ spring:
 
   application:
     name: solution-service
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+      discovery:
+        fail-fast: false
+        prefer-ip-address: true
+        health-check-path: /actuator/health
+        instance-id: ${spring.application.name}-${random.uuid}
 
   liquibase:
     change-log: classpath:/db/changelog/changelog-master.yaml
@@ -57,6 +66,13 @@ spring:
   data:
     mongodb:
       uri: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@${MONGO_HOST:localhost}:27017/mongo-db?authSource=admin
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000
 
 logging:
   level:
@@ -112,6 +128,10 @@ management:
     web:
       exposure:
         include: health,prometheus,info
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
 otel:
   exporter:

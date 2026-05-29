@@ -12,7 +12,6 @@ import com.technokratos.taskservice.exception.TaskNotFoundException;
 import com.technokratos.taskservice.mapper.TaskMapper;
 import com.technokratos.taskservice.model.Tag;
 import com.technokratos.taskservice.model.Task;
-import com.technokratos.taskservice.model.TaskUserStats;
 import com.technokratos.taskservice.model.TestCase;
 import com.technokratos.taskservice.repository.TagRepository;
 import com.technokratos.taskservice.repository.TaskRepository;
@@ -21,6 +20,9 @@ import com.technokratos.taskservice.repository.TaskUserStatsRepository;
 import com.technokratos.taskservice.util.SlugUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -45,6 +47,7 @@ public class TaskService {
     private final TaskMapper taskMapper;
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "tasks", key = "'public:' + #id")
     public TaskPublicView getPublicById(UUID id) {
         Task t = taskRepository.findById(id).orElseThrow(() -> TaskNotFoundException.byId(id));
         if (t.getStatus() != TaskStatus.PUBLISHED) {
@@ -54,6 +57,7 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "tasks", key = "'admin:' + #id")
     public TaskAdminView getAdminById(UUID id) {
         return taskMapper.toAdminView(taskRepository.findById(id)
                 .orElseThrow(() -> TaskNotFoundException.byId(id)));
@@ -113,39 +117,31 @@ public class TaskService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "tasks", key = "'public:' + #id"),
+            @CacheEvict(value = "tasks", key = "'admin:' + #id")
+    })
     public TaskAdminView update(UUID id, AdminTaskUpdateRequest req) {
-        log.debug("Updating task with id: {}", id);
-
         Task task = taskRepository.findById(id).orElseThrow(() -> TaskNotFoundException.byId(id));
-        if (req.title() != null) {
-            task.setTitle(req.title());
-        }
-        if (req.condition() != null) {
-            task.setCondition(req.condition());
-        }
-        if (req.difficulty() != null) {
-            task.setDifficulty(req.difficulty());
-        }
-        if (req.status() != null) {
-            task.setStatus(req.status());
-        }
-        if (req.points() != null) {
-            task.setPoints(req.points());
-        }
-        if (req.timeLimitMs() != null) {
-            task.setTimeLimitMs(req.timeLimitMs());
-        }
-        if (req.memoryLimitMb() != null) {
-            task.setMemoryLimitMb(req.memoryLimitMb());
-        }
-        if (req.tagSlugs() != null) {
-            task.setTags(resolveTags(req.tagSlugs()));
-        }
-        log.info("Task {} updated successfully. Changes: {}", id, req);
+
+        if (req.title() != null) task.setTitle(req.title());
+        if (req.condition() != null) task.setCondition(req.condition());
+        if (req.difficulty() != null) task.setDifficulty(req.difficulty());
+        if (req.status() != null) task.setStatus(req.status());
+        if (req.points() != null) task.setPoints(req.points());
+        if (req.timeLimitMs() != null) task.setTimeLimitMs(req.timeLimitMs());
+        if (req.memoryLimitMb() != null) task.setMemoryLimitMb(req.memoryLimitMb());
+        if (req.tagSlugs() != null) task.setTags(resolveTags(req.tagSlugs()));
+
+        log.info("Task {} updated successfully", id);
         return taskMapper.toAdminView(task);
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "tasks", key = "'public:' + #id"),
+            @CacheEvict(value = "tasks", key = "'admin:' + #id")
+    })
     public TaskAdminView publish(UUID id, boolean publish) {
         Task task = taskRepository.findById(id).orElseThrow(() -> TaskNotFoundException.byId(id));
         task.setStatus(publish ? TaskStatus.PUBLISHED : TaskStatus.DRAFT);
@@ -154,6 +150,10 @@ public class TaskService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "tasks", key = "'public:' + #id"),
+            @CacheEvict(value = "tasks", key = "'admin:' + #id")
+    })
     public void delete(UUID id) {
         if (!taskRepository.existsById(id)) {
             throw TaskNotFoundException.byId(id);
@@ -188,3 +188,4 @@ public class TaskService {
         return new HashSet<>(found);
     }
 }
+
