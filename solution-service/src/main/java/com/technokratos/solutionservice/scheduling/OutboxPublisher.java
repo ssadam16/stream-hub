@@ -27,7 +27,7 @@ public class OutboxPublisher {
 
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
-    private final KafkaTemplate<UUID, Object> kafkaTemplate; // универсальный
+    private final KafkaTemplate<UUID, Object> kafkaTemplate;
 
     @Scheduled(fixedDelay = 3000)
     @Transactional
@@ -61,7 +61,7 @@ public class OutboxPublisher {
         }
     }
 
-    @Scheduled(cron = "0 0 3 * * *") // каждую ночь в 3:00
+    @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void cleanProcessedEvents() {
         Instant threshold = Instant.now().minus(7, ChronoUnit.DAYS);
@@ -81,5 +81,9 @@ public class OutboxPublisher {
                     objectMapper.readValue(event.getPayload(), SolutionCompletedEvent.class);
             default -> throw new IllegalArgumentException("Unknown: " + event.getEventType());
         };
+    }
+
+    private void failedToPublishEvents(Throwable throwable) {
+
     }
 }

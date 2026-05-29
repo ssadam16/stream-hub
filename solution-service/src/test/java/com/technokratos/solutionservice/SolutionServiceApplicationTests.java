@@ -2,73 +2,54 @@ package com.technokratos.solutionservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.core.ConsumerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
-import static org.mockito.Mockito.mock;
+import java.time.Duration;
 
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
-@SpringBootTest
-@ActiveProfiles("test")
-@Import(SolutionServiceApplicationTests.TestKafkaConfig.class)
 class SolutionServiceApplicationTests {
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-            .withDatabaseName("solutionsdb")
-            .withUsername("test")
-            .withPassword("test");
+    static MongoDBContainer mongo = new MongoDBContainer(
+            DockerImageName.parse("mongo:6.0")
+    ).withStartupTimeout(Duration.ofSeconds(180));
 
     @Container
-    static MongoDBContainer mongo = new MongoDBContainer(DockerImageName.parse("mongo:6.0"));
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
+            DockerImageName.parse("postgres:16-alpine")
+    ).withStartupTimeout(Duration.ofSeconds(180));
+
+    @Container
+    static KafkaContainer kafka = new KafkaContainer(
+            DockerImageName.parse("apache/kafka:3.8.0")
+    )
+            .withEnv("KAFKA_HEAP_OPTS", "-Xmx256m -Xms256m")
+            .withStartupTimeout(Duration.ofSeconds(180));
 
     @DynamicPropertySource
-    static void properties(DynamicPropertyRegistry registry) {
+    static void registerProperties(DynamicPropertyRegistry registry) {
+        System.out.println(">>> POSTGRES URL: " + postgres.getJdbcUrl());
+        System.out.println(">>> POSTGRES PORT: " + postgres.getMappedPort(5432));
+        System.out.println(">>> ACTIVE PROFILES: " + System.getProperty("spring.profiles.active"));
+        System.out.println(">>> DATASOURCE FROM ENV: " + System.getenv("SPRING_DATASOURCE_URL"));
+
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.data.mongodb.uri", mongo::getReplicaSetUrl);
-        registry.add("spring.flyway.enabled", () -> "true");
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
-        registry.add("spring.kafka.consumer.auto-startup", () -> "false");
-        registry.add("spring.kafka.listener.auto-startup", () -> "false");
+        registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
     }
 
     @Test
     void contextLoads() {
-    }
-
-    @Configuration
-    static class TestKafkaConfig {
-
-        @Bean
-        @Primary
-        public ConcurrentKafkaListenerContainerFactory<?, ?> kafkaListenerContainerFactory() {
-            ConcurrentKafkaListenerContainerFactory<Object, Object> factory =
-                    new ConcurrentKafkaListenerContainerFactory<>();
-            factory.setConsumerFactory(mock(ConsumerFactory.class));
-            factory.setAutoStartup(false);
-            return factory;
-        }
-
-        @Bean
-        @Primary
-        @SuppressWarnings("unchecked")
-        public KafkaTemplate<Object, Object> kafkaTemplate() {
-            return mock(KafkaTemplate.class);
-        }
     }
 }
