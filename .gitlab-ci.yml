@@ -30,10 +30,7 @@ test:
     - key:
         files:
           - build.gradle
-          - build.gradle.kts
           - settings.gradle
-          - settings.gradle.kts
-          - gradle/libs.versions.toml
       paths:
         - .gradle/caches/
         - .gradle/wrapper/
