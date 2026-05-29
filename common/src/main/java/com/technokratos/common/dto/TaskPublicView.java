@@ -9,12 +9,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Public view of a single task for users — only non-hidden test cases.
- * Returned by /api/v1/tasks/{id}.
- * Also consumed internally by solution-service for code execution
- * (testCases are the public examples; full set is fetched separately).
- */
 @Builder
 public record TaskPublicView(
         UUID id,
