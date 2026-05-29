@@ -10,11 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Internal endpoints consumed only by other services (not exposed via gateway
- * for end users). Returns full data including hidden test cases — used by
- * solution-service to send code to executor.
- */
 @Tag(name = "Internal Tasks API", description = "Service-to-service endpoints")
 @RequestMapping("/internal/v1/tasks")
 public interface InternalTaskApi {

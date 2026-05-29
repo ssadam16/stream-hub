@@ -38,10 +38,6 @@ public final class TaskSpecifications {
         return (root, q, cb) -> cb.like(cb.lower(root.get("title")), pattern);
     }
 
-    /**
-     * Filter tasks containing ALL of the given tag slugs.
-     * Implemented via subquery to avoid Cartesian-product blowup on joins.
-     */
     public static Specification<Task> hasAllTags(Collection<String> tagSlugs) {
         if (tagSlugs == null || tagSlugs.isEmpty()) {
             return null;

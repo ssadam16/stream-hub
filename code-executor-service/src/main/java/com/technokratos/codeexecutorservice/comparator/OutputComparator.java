@@ -8,12 +8,10 @@ public class OutputComparator {
         return actual.trim().equals(expected.trim());
     }
 
-    //whitespace-tolerant
     public static boolean compareIgnoreWhitespace(String actual, String expected) {
         return normalize(actual).equals(normalize(expected));
     }
 
-    // Для задач с double (например вывести PI)
     public static boolean compareWithEpsilon(String actual, String expected, double epsilon) {
         try {
             double a = Double.parseDouble(actual.trim());

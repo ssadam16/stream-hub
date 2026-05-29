@@ -4,9 +4,6 @@ import lombok.Builder;
 
 import java.util.UUID;
 
-/**
- * Full test case info, visible to admins only.
- */
 @Builder
 public record TestCaseFull(
         UUID id,

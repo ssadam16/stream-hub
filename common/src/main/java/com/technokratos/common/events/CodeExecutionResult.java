@@ -12,7 +12,7 @@ import java.util.UUID;
 @Builder
 public record CodeExecutionResult(
         UUID solutionId,
-        SolutionStatus status,           // COMPLETED / COMPILATION_ERROR / RUNTIME_ERROR / TIMEOUT / INTERNAL_ERROR
+        SolutionStatus status,
         long passedTests,
         int totalTests,
         List<TestCaseResult> testResults,
@@ -20,7 +20,7 @@ public record CodeExecutionResult(
         TaskDifficulty difficulty,
         ProgrammingLanguage language,
         int points,
-        String errorMessage              // для compile errors и internal errors
+        String errorMessage
 ) {
 
 }

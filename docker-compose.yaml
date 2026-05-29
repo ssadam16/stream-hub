@@ -88,10 +88,10 @@ services:
     networks:
       - streamhub-network
     healthcheck:
-      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')" ]
+      test: [ "CMD", "mongosh", "--quiet", "-u", "${MONGO_ROOT_USERNAME}", "-p", "${MONGO_ROOT_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')" ]
       interval: 10s
       timeout: 5s
-      start_period: 20s
+      start_period: 30s
       retries: 5
 
   kafka-1:
