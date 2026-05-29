@@ -44,8 +44,6 @@ public class TaskService {
     private final TaskUserStatsRepository taskUserStatsRepository;
     private final TaskMapper taskMapper;
 
-    // ---------- read ----------
-
     @Transactional(readOnly = true)
     public TaskPublicView getPublicById(UUID id) {
         Task t = taskRepository.findById(id).orElseThrow(() -> TaskNotFoundException.byId(id));
@@ -87,8 +85,6 @@ public class TaskService {
         return taskRepository.findAllByIdWithTagsAndTestCases(ids).stream()
                 .collect(Collectors.toMap(Task::getId, taskMapper::toShortView));
     }
-
-    // ---------- write ----------
 
     @Transactional
     public TaskAdminView create(AdminTaskCreateRequest req, UUID authorId) {
@@ -165,8 +161,6 @@ public class TaskService {
         taskRepository.deleteById(id);
         log.info("Deleted task id={}", id);
     }
-
-    // ---------- helpers ----------
 
     private String buildUniqueSlug(String title) {
         String base = SlugUtil.slugify(title);

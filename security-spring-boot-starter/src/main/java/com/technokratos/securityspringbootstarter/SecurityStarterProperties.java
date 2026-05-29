@@ -12,14 +12,8 @@ import java.util.Set;
 @Setter
 public class SecurityStarterProperties {
 
-    /**
-     * Имя claim в JWT, который содержит роли пользователя
-     */
     private String rolesClaim = "roles";
 
-    /**
-     * Все permit all эндпоинты для security
-     */
     private String[] permitAll = new String[]{
             "/swagger-ui/**",
             "/swagger-ui.html",

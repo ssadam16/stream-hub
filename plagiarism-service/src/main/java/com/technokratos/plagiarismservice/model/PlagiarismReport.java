@@ -19,9 +19,9 @@ public class PlagiarismReport {
     @Id
     private String id;
 
-    private UUID solutionId;         // новое решение
-    private UUID matchedSolutionId;  // с чем совпало
+    private UUID solutionId;
+    private UUID matchedSolutionId;
     private UUID taskId;
-    private double similarity;       // 0.0 - 1.0
+    private double similarity; // 0.0 - 1.0
     private Instant detectedAt;
 }

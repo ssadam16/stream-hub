@@ -31,8 +31,6 @@ public class KafkaConfiguration {
     @Value("${spring.kafka.consumer.group-id}")
     private String groupId;
 
-    // ---------- producers ----------
-
     private Map<String, Object> producerProps() {
         Map<String, Object> props = new HashMap<>();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -63,8 +61,6 @@ public class KafkaConfiguration {
     public KafkaTemplate<UUID, Object> kafkaTemplate() {
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerProps()));
     }
-
-    // ---------- consumer for code-execution-results ----------
 
     @Bean
     public ConsumerFactory<UUID, CodeExecutionResult> resultConsumerFactory() {

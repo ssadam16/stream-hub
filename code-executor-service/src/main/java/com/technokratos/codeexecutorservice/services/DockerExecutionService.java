@@ -39,7 +39,7 @@ public class DockerExecutionService {
         log.info("Waiting for container slot, solutionId={}", solutionId);
 
         try {
-            containerSemaphore.acquire();  // ждём свободный слот
+            containerSemaphore.acquire();
             log.info("Got container slot, solutionId={}", solutionId);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
