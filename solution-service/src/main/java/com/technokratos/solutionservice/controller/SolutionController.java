@@ -51,5 +51,7 @@ public class SolutionController implements SolutionApi {
     public void delete(UUID solutionId, Jwt jwt) {
         service.delete(solutionId, jwt);
     }
+
+
     //getAllCompletedSolutionsByTaskId
 }

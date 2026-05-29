@@ -388,6 +388,15 @@ services:
       - prometheus-data:/prometheus
     networks:
       - streamhub-network
+  redis:
+    image: redis:7-alpine
+    container_name: redis-rate-limiter
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-password}
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
 
 volumes:
   task-service-postgres-data:
@@ -401,6 +410,7 @@ volumes:
   tempo-data:
   prometheus-data:
   user-service-postgres-data:
+  redis_data:
 
 networks:
   streamhub-network:
